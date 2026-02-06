@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "NCR",
+        "adm_level": "region",
+        "region_name": "National Capital Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [120.9, 14.3],
+            [121.1, 14.3],
+            [121.1, 14.7],
+            [120.9, 14.7],
+            [120.9, 14.3]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -24,6 +24,9 @@ export const useMapStore = defineStore('map', () => {
   const geoJSON = ref<any>(null);
   const geoJsonCache = new Map<string, any>();
   const isLoading = ref(false);
+  
+  // Callout labels visibility
+  const showLabels = ref(true);
 
   // Extracted boundary lists for dropdowns (with PCODEs)
   const regionList = ref<BoundaryInfo[]>([]);
@@ -125,6 +128,9 @@ export const useMapStore = defineStore('map', () => {
         .filter((c: BoundaryInfo) => c.pcode && c.name)
         .sort((a: BoundaryInfo, b: BoundaryInfo) => a.name.localeCompare(b.name));
     }
+    
+    // Restore the map data for the current active level so the map renders correctly
+    await loadMapData(activeLevel.value);
   }
 
   // Get selected boundary info
@@ -207,9 +213,36 @@ export const useMapStore = defineStore('map', () => {
     loadMapData(level);
   }
 
-  function selectBoundary(pcode: string | null): void {
+  async function selectBoundary(pcode: string | null): Promise<void> {
     selectedBoundaryPcode.value = pcode;
-    visibleSubBoundaryPcodes.value.clear();
+    
+    // atomic update to avoid intermediate watcher triggers
+    const newSet = new Set<string>();
+    
+    if (pcode) {
+      // Load the sub-level GeoJSON data first
+      if (activeLevel.value === 'region') {
+        await loadMapData('province');
+      } else if (activeLevel.value === 'province') {
+        await loadMapData('city');
+      }
+      
+      // Logic from sub-boundaries computed property
+      // We manually query here to ensure we have the latest data immediately
+      let subs: BoundaryInfo[] = [];
+      if (activeLevel.value === 'region') {
+        subs = provinceList.value.filter(p => p.parentRegionPcode === pcode);
+      } else if (activeLevel.value === 'province') {
+        subs = cityList.value.filter(c => c.parentProvincePcode === pcode);
+      }
+      
+      subs.forEach(sub => newSet.add(sub.pcode));
+    } else {
+      // When clearing selection, reload the current level
+      await loadMapData(activeLevel.value);
+    }
+    
+    visibleSubBoundaryPcodes.value = newSet;
   }
 
   function toggleSubBoundary(pcode: string): void {
@@ -232,6 +265,10 @@ export const useMapStore = defineStore('map', () => {
     visibleSubBoundaryPcodes.value = new Set();
   }
 
+  function toggleLabels(): void {
+    showLabels.value = !showLabels.value;
+  }
+
   return {
     activeLevel,
     selectedBoundaryPcode,
@@ -239,6 +276,7 @@ export const useMapStore = defineStore('map', () => {
     visibleSubBoundaryPcodes,
     geoJSON,
     isLoading,
+    showLabels,
     regionList,
     provinceList,
     cityList,
@@ -250,6 +288,7 @@ export const useMapStore = defineStore('map', () => {
     toggleSubBoundary,
     selectAllSubBoundaries,
     clearSubBoundaries,
+    toggleLabels,
     loadMapData,
     loadBoundaryLists
   };

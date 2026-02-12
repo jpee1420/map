@@ -8,7 +8,6 @@ const mapStore = useMapStore();
 const levels: { value: AdminLevel; label: string }[] = [
   { value: "region", label: "Region" },
   { value: "province", label: "Province" },
-  { value: "city", label: "City/Municipality" },
 ];
 
 const showSubBoundaries = computed(() => {
@@ -33,17 +32,20 @@ onMounted(() => {
   mapStore.loadBoundaryLists();
 });
 
-// When sub-boundaries are toggled, load appropriate level data
+// When sub-boundaries are first enabled, load the appropriate level data once
 watch(
   () => mapStore.visibleSubBoundaryPcodes.size,
-  (size) => {
-    if (size > 0) {
+  (newSize, oldSize) => {
+    // Only load data when transitioning from 0 to >0 (first sub-boundary selected)
+    // Don't reload on subsequent changes (Select All, Clear, individual toggles)
+    if (newSize > 0 && oldSize === 0) {
       if (mapStore.activeLevel === "region") {
         mapStore.loadMapData("province");
       } else if (mapStore.activeLevel === "province") {
         mapStore.loadMapData("city");
       }
-    } else if (mapStore.selectedBoundaryPcode) {
+    // When going from >0 to 0, reload the base level map to show the whole boundary
+    } else if (newSize === 0 && oldSize > 0 && mapStore.selectedBoundaryPcode) {
       mapStore.loadMapData(mapStore.activeLevel);
     }
   },
@@ -89,6 +91,21 @@ watch(
           {{ boundary.name }}
         </option>
       </select>
+    </div>
+
+    <!-- Show Labels Toggle -->
+    <div class="flex items-center justify-between py-2">
+      <label class="text-xs font-medium text-gray-500">Show Data Labels</label>
+      <button
+        @click="mapStore.toggleLabels"
+        class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+        :class="mapStore.showLabels ? 'bg-blue-600' : 'bg-gray-300'"
+      >
+        <span
+          class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
+          :class="mapStore.showLabels ? 'translate-x-4' : 'translate-x-0.5'"
+        />
+      </button>
     </div>
 
     <!-- Sub-Boundaries Checkboxes -->

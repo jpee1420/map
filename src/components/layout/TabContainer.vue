@@ -3,8 +3,8 @@ import { ref, computed, nextTick, defineAsyncComponent } from 'vue';
 import { useUIStore } from '@/stores/uiStore';
 import { useDataStore } from '@/stores/dataStore';
 import { 
-  PlusIcon, XIcon, GlobeIcon, BarChartIcon, LineChartIcon, PieChartIcon, 
-  MapPinIcon, DownloadIcon, FileSpreadsheetIcon, ImageIcon, FileIcon
+  PlusIcon, XIcon, GlobeIcon, BarChartIcon, LineChartIcon, CircleDotIcon, 
+  MapPinIcon, FileSpreadsheetIcon, ImageIcon, FileIcon, AlignLeftIcon, LayersIcon
 } from 'lucide-vue-next';
 import BaseButton from '@/components/common/BaseButton.vue';
 import { exportToPng, exportToSvg, exportToExcel } from '@/utils/chartExport';
@@ -27,9 +27,9 @@ const activeTab = computed(() =>
 
 // Chart Data Composable for Export
 const { chartData } = useChartData(
-  dataStore.dataset,
-  activeTab.value?.filters || [],
-  activeTab.value?.pivotFields || []
+  () => dataStore.dataset,
+  () => activeTab.value?.filters || [],
+  () => activeTab.value?.pivotFields || []
 );
 
 // Tab Drag & Drop
@@ -53,8 +53,10 @@ function onDrop(event: DragEvent, targetTabId: string) {
     if (sourceIndex > -1 && targetIndex > -1) {
       const newTabs = [...uiStore.tabs];
       const [movedTab] = newTabs.splice(sourceIndex, 1);
-      newTabs.splice(targetIndex, 0, movedTab);
-      uiStore.reorderTabs(newTabs);
+      if (movedTab) {
+        newTabs.splice(targetIndex, 0, movedTab);
+        uiStore.reorderTabs(newTabs);
+      }
     }
   }
   draggedTabId.value = null;
@@ -128,8 +130,12 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
       >
         <!-- Icon based on type -->
         <component 
-          :is="tab.type === 'map' ? GlobeIcon : tab.type === 'bar' ? BarChartIcon : 
-               tab.type === 'line' ? LineChartIcon : tab.type === 'pie' ? PieChartIcon : MapPinIcon" 
+          :is="tab.type === 'map' ? GlobeIcon : 
+               tab.type === 'bar' ? BarChartIcon : 
+               tab.type === 'stacked' ? LayersIcon :
+               tab.type === 'hbar' ? AlignLeftIcon :
+               tab.type === 'line' ? LineChartIcon : 
+               tab.type === 'doughnut' ? CircleDotIcon : MapPinIcon" 
           class="w-4 h-4 shrink-0" 
         />
         
@@ -175,9 +181,10 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
         >
           <option value="map">Choropleth Map</option>
           <option value="bar">Bar Chart</option>
+          <option value="stacked">Stacked Bar Chart</option>
+          <option value="hbar">Horizontal Bar Chart</option>
           <option value="line">Line Chart</option>
-          <option value="pie">Pie Chart</option>
-          <option value="scatter">Scatter Plot</option>
+          <option value="doughnut">Doughnut Chart</option>
         </select>
       </div>
 
@@ -217,9 +224,10 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
           :tab-id="activeTab.id"
         />
         <EChartsGeneric 
-          v-else
+          v-else-if="activeTab.type === 'bar' || activeTab.type === 'line' || activeTab.type === 'doughnut' || activeTab.type === 'hbar' || activeTab.type === 'stacked'"
           ref="chartRef"
           :tab-id="activeTab.id"
+          :type="activeTab.type"
         />
       </template>
       <div v-else class="flex flex-col items-center justify-center h-full text-gray-400">

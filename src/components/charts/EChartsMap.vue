@@ -24,13 +24,14 @@ const filters = computed(() => activeTab.value?.filters || []);
 const pivotFields = computed(() => activeTab.value?.pivotFields || []);
 
 const { chartData } = useChartData(
-  dataStore.dataset,
-  filters.value,
-  pivotFields.value,
+  () => dataStore.dataset,
+  filters,
+  pivotFields,
 );
 
 const mapData = computed(() => {
   const { dimensions, source } = chartData.value;
+
   if (!dimensions.length || !source.length) return [];
 
   const nameCol = dimensions[0];
@@ -38,11 +39,93 @@ const mapData = computed(() => {
 
   if (!nameCol || !valueCol) return [];
 
-  return source.map((row: Record<string, unknown>) => ({
-    name: row[nameCol],
-    value: row[valueCol],
-    ...row,
-  }));
+  // Helper to normalize names for fuzzy matching
+  const normalize = (name: string): string => {
+    return name.toUpperCase()
+      .replace(/\bCITY OF\b/g, '')
+      .replace(/\bCITY\b/g, '')
+      .replace(/\bMUNICIPALITY OF\b/g, '')
+      .replace(/\./g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Build a lookup map of GeoJSON boundary names
+  const geoNameMap = new Map<string, string>();
+  if (mapStore.geoJSON?.features) {
+    mapStore.geoJSON.features.forEach((feature: any) => {
+      const geoName = feature.properties?.name || feature.properties?.ADM1_EN || feature.properties?.ADM2_EN || feature.properties?.ADM3_EN;
+      if (geoName) {
+        geoNameMap.set(geoName.toUpperCase(), geoName);
+        geoNameMap.set(normalize(geoName), geoName);
+      }
+    });
+  }
+
+  // Helper to resolve a raw name to a GeoJSON boundary name
+  const matchGeoName = (raw: string): string => {
+    return geoNameMap.get(raw.toUpperCase()) || geoNameMap.get(normalize(raw)) || raw;
+  };
+
+  // Detect multi-dimension: composite key contains " - " separator
+  const dimFields = pivotFields.value.filter((f: any) => f.fieldType === 'dimension');
+  const isMultiDim = dimFields.length > 1;
+
+  if (isMultiDim) {
+    // Multi-dimension: group rows by the geographic (first) dimension
+    const breakdownDimName = dimFields.slice(1).map((f: any) => f.column).join(' / ');
+
+    const groups = new Map<string, {
+      total: number;
+      breakdowns: Map<string, number>;
+    }>();
+
+    for (const row of source) {
+      const compositeKey = String(row[nameCol] || '');
+      // Split composite key: first part = geographic, rest = breakdown category
+      const sepIdx = compositeKey.indexOf(' - ');
+      const geoRaw = sepIdx >= 0 ? compositeKey.substring(0, sepIdx) : compositeKey;
+      const breakdownLabel = sepIdx >= 0 ? compositeKey.substring(sepIdx + 3) : 'Other';
+      const value = Number(row[valueCol]) || 0;
+
+      const matchedGeo = matchGeoName(geoRaw);
+
+      if (!groups.has(matchedGeo)) {
+        groups.set(matchedGeo, { total: 0, breakdowns: new Map() });
+      }
+      const group = groups.get(matchedGeo)!;
+      group.total += value;
+      group.breakdowns.set(
+        breakdownLabel,
+        (group.breakdowns.get(breakdownLabel) || 0) + value,
+      );
+    }
+
+    return Array.from(groups.entries()).map(([geoName, group]) => ({
+      name: geoName,
+      value: group.total,
+      breakdownDimension: breakdownDimName,
+      breakdowns: Array.from(group.breakdowns.entries()).map(([label, val]) => ({
+        label,
+        value: val,
+        percentage: group.total > 0
+          ? Math.round((val / group.total) * 1000) / 10
+          : 0,
+      })),
+    }));
+  }
+
+  // Single dimension: simple name→value mapping
+  return source.map((row: Record<string, unknown>) => {
+    const rawName = String(row[nameCol] || '');
+    const matchedName = matchGeoName(rawName);
+
+    return {
+      name: matchedName,
+      value: row[valueCol],
+      ...row,
+    };
+  });
 });
 
 const visualMapRange = computed(() => {
@@ -62,9 +145,42 @@ function getOptions() {
   return {
     tooltip: {
       trigger: "item",
+      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      borderColor: "#3b82f6",
+      borderWidth: 1,
+      padding: [12, 16],
+      textStyle: {
+        color: "#1f2937",
+      },
       formatter: (params: any) => {
-        if (isNaN(params.value)) return params.name;
-        return `${params.name}: ${params.value.toLocaleString()}`;
+        const name = params.name || "Unknown";
+        const dataItem = mapData.value.find((d: any) => d.name === name);
+        
+        if (!dataItem) {
+          return `<div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${name}</div><div style="color: #6b7280;">No data available</div>`;
+        }
+        
+        // Build tooltip with all metrics
+        let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1f2937;">${name}</div>`;
+        
+        // Get all numeric properties as metrics
+        const metricEntries = Object.entries(dataItem).filter(([key, val]) => 
+          key !== 'name' && typeof val === 'number'
+        );
+        
+        if (metricEntries.length > 0) {
+          html += '<div style="display: flex; flex-direction: column; gap: 4px;">';
+          metricEntries.forEach(([key, val]) => {
+            const formattedVal = typeof val === 'number' ? val.toLocaleString() : val;
+            html += `<div style="display: flex; justify-content: space-between; gap: 16px;">
+              <span style="color: #6b7280;">${key}:</span>
+              <span style="font-weight: 600; color: #3b82f6;">${formattedVal}</span>
+            </div>`;
+          });
+          html += '</div>';
+        }
+        
+        return html;
       },
     },
     visualMap: hasData
@@ -226,9 +342,9 @@ onUnmounted(() => {
 
     <!-- Callout Layer Overlay -->
     <CalloutLayer 
-      v-if="chartInstance && mapStore.geoJSON" 
+      v-if="chartInstance && mapStore.filteredGeoJSON && mapStore.showLabels" 
       :chartInstance="chartInstance" 
-      :geoData="mapStore.geoJSON"
+      :geoData="mapStore.filteredGeoJSON"
       :mapData="mapData"
     />
   </div>

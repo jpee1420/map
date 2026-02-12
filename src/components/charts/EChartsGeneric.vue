@@ -7,7 +7,7 @@ import { useChartData } from "@/composables/useChartData";
 
 const props = defineProps<{
   tabId: string;
-  type: "bar" | "line" | "pie" | "scatter";
+  type: "bar" | "line" | "doughnut" | "hbar" | "stacked";
 }>();
 
 const dataStore = useDataStore();
@@ -24,29 +24,79 @@ const filters = computed(() => activeTab.value?.filters || []);
 const pivotFields = computed(() => activeTab.value?.pivotFields || []);
 
 const { chartData } = useChartData(
-  dataStore.dataset,
-  filters.value,
-  pivotFields.value,
+  () => dataStore.dataset,
+  filters,
+  pivotFields,
 );
 
 function getOptions() {
   const { dimensions, source } = chartData.value;
 
-  // Basic series generation
-  const series = dimensions.slice(1).map((dim) => ({
-    type: props.type,
-    name: dim,
-    encode: {
-      x: props.type === "pie" ? undefined : dimensions[0],
-      y: props.type === "pie" ? undefined : dim,
-      itemName: props.type === "pie" ? dimensions[0] : undefined,
-      value: props.type === "pie" ? dim : undefined,
-    },
-  }));
+  // Determine ECharts series type from our chart type
+  const isDoughnut = props.type === "doughnut";
+  const isHorizontal = props.type === "hbar";
+  const isStacked = props.type === "stacked";
+
+  // Build series
+  const series = dimensions.slice(1).map((dim) => {
+    const baseSeries: Record<string, unknown> = {
+      type: isDoughnut ? "pie" : props.type === "line" ? "line" : "bar",
+      name: dim,
+    };
+
+    if (isDoughnut) {
+      // Doughnut chart configuration
+      baseSeries.radius = ["40%", "70%"];
+      baseSeries.center = ["50%", "50%"];
+      baseSeries.encode = {
+        itemName: dimensions[0],
+        value: dim,
+      };
+      baseSeries.label = {
+        show: true,
+        formatter: "{b}: {c} ({d}%)",
+      };
+      baseSeries.emphasis = {
+        label: { show: true, fontWeight: "bold" },
+      };
+    } else if (isHorizontal || isStacked) {
+      // Horizontal or stacked bar
+      baseSeries.encode = {
+        x: dim,
+        y: dimensions[0],
+      };
+      if (isStacked) {
+        baseSeries.stack = "total";
+      }
+    } else {
+      // Regular bar/line
+      baseSeries.encode = {
+        x: dimensions[0],
+        y: dim,
+      };
+    }
+
+    return baseSeries;
+  });
+
+  // Build axes based on chart type
+  let xAxis: Record<string, unknown> | undefined;
+  let yAxis: Record<string, unknown> | undefined;
+
+  if (isDoughnut) {
+    xAxis = undefined;
+    yAxis = undefined;
+  } else if (isHorizontal) {
+    xAxis = { type: "value" };
+    yAxis = { type: "category" };
+  } else {
+    xAxis = { type: "category" };
+    yAxis = { type: "value" };
+  }
 
   return {
     tooltip: {
-      trigger: "axis",
+      trigger: isDoughnut ? "item" : "axis",
       axisPointer: { type: "shadow" },
     },
     legend: {},
@@ -54,8 +104,9 @@ function getOptions() {
       dimensions: dimensions,
       source: source,
     },
-    xAxis: props.type === "pie" ? undefined : { type: "category" },
-    yAxis: props.type === "pie" ? undefined : {},
+    grid: isDoughnut ? undefined : { left: "3%", right: "4%", bottom: "3%", containLabel: true },
+    xAxis: xAxis,
+    yAxis: yAxis,
     series: series,
   };
 }

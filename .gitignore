@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+test-files/
+.env
+.agent/
+.windsurf/
+.vscode/
+public/data/*
+scripts/*
+prompt.md
+.gitignore

@@ -34,8 +34,8 @@ function setPreset(days: number) {
   start.setDate(end.getDate() - days);
   
   updateValue(
-    start.toISOString().split('T')[0],
-    end.toISOString().split('T')[0]
+    start.toISOString().split('T')[0] || '',
+    end.toISOString().split('T')[0] || ''
   );
 }
 

@@ -31,6 +31,7 @@ export interface FilterConfig {
 export interface PivotField {
   id: string;
   column: string;
+  fieldType: 'dimension' | 'metric';
   aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median';
   formatType?: 'number' | 'currency' | 'percentage';
   decimals?: number;
@@ -43,7 +44,7 @@ export interface PivotField {
 export interface TabConfig {
   id: string;
   name: string;
-  type: 'map' | 'bar' | 'line' | 'pie' | 'scatter' | 'table';
+  type: 'map' | 'bar' | 'line' | 'doughnut' | 'hbar' | 'stacked' | 'table';
   filters: FilterConfig[];
   pivotFields: PivotField[];
 }

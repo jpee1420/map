@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 import type { ImportedDataset, FilterConfig, PivotField, DataRow } from '@/types';
 
 export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median';
@@ -66,16 +66,18 @@ export function formatValue(
 }
 
 export function useChartData(
-  dataset: ImportedDataset | null,
-  filters: FilterConfig[],
-  pivotFields: PivotField[]
+  dataset: MaybeRefOrGetter<ImportedDataset | null>,
+  filters: MaybeRefOrGetter<FilterConfig[]>,
+  pivotFields: MaybeRefOrGetter<PivotField[]>
 ) {
   
   const filteredData = computed(() => {
-    if (!dataset || !dataset.data) return [];
+    const ds = toValue(dataset);
+    const filterList = toValue(filters);
+    if (!ds || !ds.data) return [];
     
-    return dataset.data.filter(row => {
-      return filters.every(filter => {
+    return ds.data.filter(row => {
+      return filterList.every(filter => {
         if (!filter.value) return true;
         const rowValue = row[filter.column];
         
@@ -103,50 +105,86 @@ export function useChartData(
   });
 
   const chartData = computed(() => {
-    if (pivotFields.length === 0) return { dimensions: [], source: [] };
+    const pivotList = toValue(pivotFields);
+    if (pivotList.length === 0) return { dimensions: [], source: [] };
     
     const data = filteredData.value;
     if (data.length === 0) return { dimensions: [], source: [] };
     
-    // Find category column (first string column)
-    const firstRow = data[0];
-    let categoryCol = 'id';
-    if (firstRow) {
-      const potentialCat = Object.keys(firstRow).find(k => typeof firstRow[k] === 'string');
-      if (potentialCat) categoryCol = potentialCat;
+    // Separate dimension and metric fields
+    const dimensionFields = pivotList.filter(f => f.fieldType === 'dimension');
+    const metricFields = pivotList.filter(f => f.fieldType === 'metric');
+    
+    // If no dimension fields, fall back to first string column (backward compatibility)
+    let groupByColumns: string[] = dimensionFields.map(f => f.column);
+    if (groupByColumns.length === 0) {
+      const firstRow = data[0];
+      if (firstRow) {
+        const potentialCat = Object.keys(firstRow).find(k => typeof firstRow[k] === 'string');
+        if (potentialCat) groupByColumns = [potentialCat];
+      }
     }
+    
+    // If still no grouping columns, use 'All' as single category
+    if (groupByColumns.length === 0) {
+      groupByColumns = ['_category'];
+    }
+    
+    // Create a composite group key from all dimension columns
+    const getGroupKey = (row: DataRow): string => {
+      if (groupByColumns[0] === '_category') return 'All';
+      return groupByColumns.map(col => String(row[col] || 'Unknown')).join(' - ');
+    };
 
-    // Group data by category
+    // Group data by dimensions
     const grouped = new Map<string, DataRow[]>();
     data.forEach(row => {
-      const category = String(row[categoryCol] || 'Unknown');
-      if (!grouped.has(category)) {
-        grouped.set(category, []);
+      const key = getGroupKey(row);
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
       }
-      grouped.get(category)!.push(row);
+      grouped.get(key)!.push(row);
     });
 
-    // Aggregate values per category
+    // Aggregate metrics per group
     const source: Record<string, unknown>[] = [];
-    grouped.forEach((rows, category) => {
-      const aggregatedRow: Record<string, unknown> = { [categoryCol]: category };
+    const categoryColName = groupByColumns.join(' - ') || '_category';
+    
+    grouped.forEach((rows, groupKey) => {
+      const aggregatedRow: Record<string, unknown> = { [categoryColName]: groupKey };
       
-      pivotFields.forEach(field => {
-        const values = rows
-          .map(r => {
-            const val = r[field.column];
-            return typeof val === 'number' ? val : Number(val) || 0;
-          })
-          .filter(v => !isNaN(v));
+      // If no metric fields but there are dimensions, add a default count
+      if (metricFields.length === 0 && dimensionFields.length > 0) {
+        aggregatedRow['Record Count'] = rows.length;
+      }
+      
+      metricFields.forEach(field => {
+        const metricName = `${field.aggregation.toUpperCase()}(${field.column})`;
         
-        aggregatedRow[field.column] = aggregate(values, field.aggregation);
+        if (field.aggregation === 'count') {
+          aggregatedRow[metricName] = rows.length;
+        } else {
+          const values = rows
+            .map(r => {
+              const val = r[field.column];
+              return typeof val === 'number' ? val : Number(val);
+            })
+            .filter(v => !isNaN(v));
+          
+          aggregatedRow[metricName] = aggregate(values, field.aggregation);
+        }
       });
       
       source.push(aggregatedRow);
     });
 
+    // Build dimensions array for ECharts dataset
+    const metricNames = metricFields.length > 0 
+      ? metricFields.map(f => `${f.aggregation.toUpperCase()}(${f.column})`)
+      : dimensionFields.length > 0 ? ['Record Count'] : pivotList.map(f => f.column);
+
     return {
-      dimensions: [categoryCol, ...pivotFields.map(f => f.column)],
+      dimensions: [categoryColName, ...metricNames],
       source
     };
   });

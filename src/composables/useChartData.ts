@@ -82,6 +82,10 @@ export function useChartData(
         const rowValue = row[filter.column];
         
         if (filter.type === 'select' || filter.type === 'search') {
+          if (Array.isArray(filter.value)) {
+            if (filter.value.length === 0) return true;
+            return filter.value.includes(String(rowValue));
+          }
           return String(rowValue) === String(filter.value);
         }
 
@@ -104,62 +108,140 @@ export function useChartData(
     });
   });
 
+  /**
+   * Apply "Others" grouping: for any dimension field with groupOthers enabled,
+   * replace matching row values with "Others". This transformation is applied
+   * before any aggregation so all consumers automatically see grouped data.
+   */
+  const processedData = computed(() => {
+    const pivotList = toValue(pivotFields);
+    const data = filteredData.value;
+    
+    // Find dimension/breakdown fields that have "Others" grouping enabled
+    const othersFields = pivotList.filter(
+      f => (f.fieldType === 'dimension' || f.fieldType === 'breakdown') && f.groupOthers && f.othersCategories?.length
+    );
+    
+    if (othersFields.length === 0) return data;
+    
+    // Transform rows: replace matching values with "Others"
+    return data.map(row => {
+      let transformed = false;
+      const newRow: DataRow = { ...row };
+      
+      for (const field of othersFields) {
+        const val = String(newRow[field.column] ?? '');
+        if (field.othersCategories!.includes(val)) {
+          newRow[field.column] = 'Others';
+          transformed = true;
+        }
+      }
+      
+      return transformed ? newRow : row;
+    });
+  });
+
   const chartData = computed(() => {
     const pivotList = toValue(pivotFields);
     if (pivotList.length === 0) return { dimensions: [], source: [] };
     
-    const data = filteredData.value;
+    const data = processedData.value;
     if (data.length === 0) return { dimensions: [], source: [] };
     
-    // Separate dimension and metric fields
+    // Separate field types
     const dimensionFields = pivotList.filter(f => f.fieldType === 'dimension');
     const metricFields = pivotList.filter(f => f.fieldType === 'metric');
+    const breakdownField = pivotList.find(f => f.fieldType === 'breakdown');
     
-    // If no dimension fields, fall back to first string column (backward compatibility)
-    let groupByColumns: string[] = dimensionFields.map(f => f.column);
-    if (groupByColumns.length === 0) {
-      const firstRow = data[0];
-      if (firstRow) {
-        const potentialCat = Object.keys(firstRow).find(k => typeof firstRow[k] === 'string');
-        if (potentialCat) groupByColumns = [potentialCat];
-      }
+    // ─── Constraint: no metric → no data ───
+    if (metricFields.length === 0) {
+      return { dimensions: [], source: [] };
+    }
+    // ─── Constraint: no dimension → no data ───
+    if (dimensionFields.length === 0) {
+      return { dimensions: [], source: [] };
     }
     
-    // If still no grouping columns, use 'All' as single category
-    if (groupByColumns.length === 0) {
-      groupByColumns = ['_category'];
-    }
+    // Determine grouping columns
+    const groupByColumns: string[] = dimensionFields.map(f => f.column);
     
-    // Create a composite group key from all dimension columns
+    const categoryColName = dimensionFields.length > 0
+      ? dimensionFields.map(f => f.displayName || f.column).join(' - ')
+      : groupByColumns.join(' - ') || '_category';
     const getGroupKey = (row: DataRow): string => {
       if (groupByColumns[0] === '_category') return 'All';
       return groupByColumns.map(col => String(row[col] || 'Unknown')).join(' - ');
     };
 
-    // Group data by dimensions
+    // ─── Breakdown pivot path ───
+    if (breakdownField && metricFields.length > 0) {
+      const bdCol = breakdownField.column;
+      const metricField = metricFields[0]!; // Only 1 metric allowed with breakdown
+      
+      // Collect unique breakdown values
+      const breakdownValues = new Set<string>();
+      data.forEach(row => {
+        const val = row[bdCol];
+        if (val != null && val !== '') breakdownValues.add(String(val));
+      });
+      const bdValues = Array.from(breakdownValues).sort();
+      
+      // Group by dimension, then sub-group by breakdown value
+      const grouped = new Map<string, Map<string, DataRow[]>>();
+      data.forEach(row => {
+        const groupKey = getGroupKey(row);
+        const bdKey = String(row[bdCol] ?? 'Unknown');
+        
+        if (!grouped.has(groupKey)) grouped.set(groupKey, new Map());
+        const subMap = grouped.get(groupKey)!;
+        if (!subMap.has(bdKey)) subMap.set(bdKey, []);
+        subMap.get(bdKey)!.push(row);
+      });
+      
+      // Build pivoted source rows
+      const source: Record<string, unknown>[] = [];
+      grouped.forEach((subMap, groupKey) => {
+        const row: Record<string, unknown> = { [categoryColName]: groupKey };
+        
+        for (const bdVal of bdValues) {
+          const subRows = subMap.get(bdVal) || [];
+          if (metricField.aggregation === 'count') {
+            row[bdVal] = subRows.length;
+          } else {
+            const values = subRows
+              .map(r => {
+                const v = r[metricField.column];
+                return typeof v === 'number' ? v : Number(v);
+              })
+              .filter(v => !isNaN(v));
+            row[bdVal] = aggregate(values, metricField.aggregation);
+          }
+        }
+        
+        source.push(row);
+      });
+      
+      return {
+        dimensions: [categoryColName, ...bdValues],
+        source
+      };
+    }
+
+    // ─── Standard path (no breakdown) ───
     const grouped = new Map<string, DataRow[]>();
     data.forEach(row => {
       const key = getGroupKey(row);
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
-      }
+      if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(row);
     });
 
-    // Aggregate metrics per group
     const source: Record<string, unknown>[] = [];
-    const categoryColName = groupByColumns.join(' - ') || '_category';
     
     grouped.forEach((rows, groupKey) => {
       const aggregatedRow: Record<string, unknown> = { [categoryColName]: groupKey };
       
-      // If no metric fields but there are dimensions, add a default count
-      if (metricFields.length === 0 && dimensionFields.length > 0) {
-        aggregatedRow['Record Count'] = rows.length;
-      }
-      
       metricFields.forEach(field => {
-        const metricName = `${field.aggregation.toUpperCase()}(${field.column})`;
+        const metricName = field.displayName || `${field.aggregation.toUpperCase()}(${field.column})`;
         
         if (field.aggregation === 'count') {
           aggregatedRow[metricName] = rows.length;
@@ -178,10 +260,7 @@ export function useChartData(
       source.push(aggregatedRow);
     });
 
-    // Build dimensions array for ECharts dataset
-    const metricNames = metricFields.length > 0 
-      ? metricFields.map(f => `${f.aggregation.toUpperCase()}(${f.column})`)
-      : dimensionFields.length > 0 ? ['Record Count'] : pivotList.map(f => f.column);
+    const metricNames = metricFields.map(f => f.displayName || `${f.aggregation.toUpperCase()}(${f.column})`);
 
     return {
       dimensions: [categoryColName, ...metricNames],
@@ -191,6 +270,7 @@ export function useChartData(
 
   return {
     filteredData,
+    processedData,
     chartData,
     formatValue
   };

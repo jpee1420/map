@@ -36,7 +36,6 @@ const props = defineProps<{
 }>();
 
 const callouts = ref<CalloutItem[]>([]);
-const containerRef = ref<HTMLDivElement | null>(null);
 
 // Centroid cache keyed by boundary name
 const centroidCache = new Map<string, [number, number]>();
@@ -50,7 +49,7 @@ const dragState = ref<{
 }>({ active: false, itemId: null, offsetX: 0, offsetY: 0 });
 
 // Layout constants
-const CARD_W = 160;
+const CARD_W = 200;
 const CARD_H_BASE = 56;
 const CARD_H_BREAKDOWN_ROW = 16;
 const GAP = 12;
@@ -82,7 +81,7 @@ function buildCentroidCache(): void {
 function extractMetrics(row: Record<string, unknown>): Array<{ key: string; val: string }> {
   const entries: Array<{ key: string; val: string }> = [];
   for (const [key, val] of Object.entries(row)) {
-    if (key === "name") continue;
+    if (key === "name" || key === "value") continue;
     if (typeof val === "number" && !isNaN(val)) {
       entries.push({ key, val: val.toLocaleString() });
     }
@@ -323,7 +322,6 @@ watch(
       :style="{
         left: `${c.x}px`,
         top: `${c.y}px`,
-        width: `${CARD_W}px`,
       }"
       @pointerdown="onPointerDown($event, c.id)"
     >
@@ -383,6 +381,9 @@ watch(
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
   user-select: none;
   touch-action: none;
+  width: auto;
+  min-width: 120px;
+  max-width: 200px;
 }
 
 .callout-card:hover {

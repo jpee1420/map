@@ -31,20 +31,33 @@ export interface FilterConfig {
 export interface PivotField {
   id: string;
   column: string;
-  fieldType: 'dimension' | 'metric';
+  fieldType: 'dimension' | 'metric' | 'breakdown';
   aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median';
   formatType?: 'number' | 'currency' | 'percentage';
   decimals?: number;
+  displayName?: string;
   colorScale?: {
     min: string;
     max: string;
   };
+  groupOthers?: boolean;
+  othersCategories?: string[];
+  seriesType?: 'bar' | 'line';  // Used in combo chart to assign metric to bar or line
+  color?: string;               // Direct color for non-map chart series
+}
+
+export interface DataLabelConfig {
+  enabled: boolean;
+  format: 'number' | 'percentage' | 'both';
+  display: 'value' | 'breakdown';
 }
 
 export interface TabConfig {
   id: string;
   name: string;
-  type: 'map' | 'bar' | 'line' | 'doughnut' | 'hbar' | 'stacked' | 'table';
+  type: 'map' | 'bar' | 'line' | 'doughnut' | 'hbar' | 'stacked' | 'combo' | 'table';
   filters: FilterConfig[];
   pivotFields: PivotField[];
+  sortOrder?: 'asc' | 'desc' | 'none';
+  dataLabel?: DataLabelConfig;
 }

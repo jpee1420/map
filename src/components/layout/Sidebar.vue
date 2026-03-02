@@ -8,6 +8,8 @@ import PivotFieldsPanel from "@/components/panels/PivotFieldsPanel.vue";
 
 const uiStore = useUIStore();
 const isCollapsed = computed(() => uiStore.sidebarCollapsed);
+const activeTab = computed(() => uiStore.tabs.find(t => t.id === uiStore.activeTabId));
+const isMapType = computed(() => activeTab.value?.type === 'map');
 
 function toggle() {
   uiStore.toggleSidebar();
@@ -32,8 +34,8 @@ function toggle() {
       v-if="!isCollapsed"
       class="h-full overflow-y-auto p-4 flex flex-col gap-6"
     >
-      <!-- Map View Controls -->
-      <section>
+      <!-- Map View Controls (map only) -->
+      <section v-if="isMapType">
         <h3
           class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2"
         >

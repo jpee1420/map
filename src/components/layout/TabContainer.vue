@@ -4,7 +4,8 @@ import { useUIStore } from '@/stores/uiStore';
 import { useDataStore } from '@/stores/dataStore';
 import { 
   PlusIcon, XIcon, GlobeIcon, BarChartIcon, LineChartIcon, CircleDotIcon, 
-  MapPinIcon, FileSpreadsheetIcon, ImageIcon, FileIcon, AlignLeftIcon, LayersIcon
+  MapPinIcon, FileSpreadsheetIcon, ImageIcon, FileIcon, AlignLeftIcon, LayersIcon,
+  TableIcon, CombineIcon
 } from 'lucide-vue-next';
 import BaseButton from '@/components/common/BaseButton.vue';
 import { exportToPng, exportToSvg, exportToExcel } from '@/utils/chartExport';
@@ -13,11 +14,13 @@ import { useChartData } from '@/composables/useChartData';
 // Asynchronously load chart components
 const EChartsMap = defineAsyncComponent(() => import('@/components/charts/EChartsMap.vue'));
 const EChartsGeneric = defineAsyncComponent(() => import('@/components/charts/EChartsGeneric.vue'));
+const DataTable = defineAsyncComponent(() => import('@/components/charts/DataTable.vue'));
 
 const uiStore = useUIStore();
 const dataStore = useDataStore();
 
-const chartRef = ref<any>(null); // Reference to the chart component
+const chartRef = ref<any>(null);
+const showTable = ref<boolean>(false);
 const editingTabId = ref<string | null>(null);
 const editNameInput = ref<HTMLInputElement | null>(null);
 
@@ -135,7 +138,9 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
                tab.type === 'stacked' ? LayersIcon :
                tab.type === 'hbar' ? AlignLeftIcon :
                tab.type === 'line' ? LineChartIcon : 
-               tab.type === 'doughnut' ? CircleDotIcon : MapPinIcon" 
+               tab.type === 'doughnut' ? CircleDotIcon :
+               tab.type === 'combo' ? CombineIcon :
+               tab.type === 'table' ? TableIcon : MapPinIcon" 
           class="w-4 h-4 shrink-0" 
         />
         
@@ -185,11 +190,20 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
           <option value="hbar">Horizontal Bar Chart</option>
           <option value="line">Line Chart</option>
           <option value="doughnut">Doughnut Chart</option>
+          <option value="combo">Combo Chart</option>
         </select>
       </div>
 
       <div class="flex items-center gap-2">
         <div class="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
+          <button 
+            @click="showTable = !showTable" 
+            class="p-1.5 rounded transition-colors" 
+            :class="showTable ? 'bg-blue-600 text-white shadow' : 'hover:bg-white hover:shadow text-gray-600'"
+            title="Toggle Table View"
+          >
+            <TableIcon class="w-4 h-4" />
+          </button>
           <button 
             @click="handleExport('png')" 
             class="p-1.5 hover:bg-white hover:shadow rounded text-gray-600" 
@@ -218,13 +232,17 @@ function handleExport(type: 'png' | 'svg' | 'excel') {
     <!-- Content Area -->
     <div class="flex-1 overflow-hidden relative p-4">
       <template v-if="activeTab">
+        <DataTable
+          v-if="showTable"
+          :tab-id="activeTab.id"
+        />
         <EChartsMap 
-          v-if="activeTab.type === 'map'"
+          v-else-if="activeTab.type === 'map'"
           ref="chartRef"
           :tab-id="activeTab.id"
         />
         <EChartsGeneric 
-          v-else-if="activeTab.type === 'bar' || activeTab.type === 'line' || activeTab.type === 'doughnut' || activeTab.type === 'hbar' || activeTab.type === 'stacked'"
+          v-else-if="activeTab.type === 'bar' || activeTab.type === 'line' || activeTab.type === 'doughnut' || activeTab.type === 'hbar' || activeTab.type === 'stacked' || activeTab.type === 'combo'"
           ref="chartRef"
           :tab-id="activeTab.id"
           :type="activeTab.type"

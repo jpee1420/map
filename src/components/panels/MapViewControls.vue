@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted } from "vue";
 import { useMapStore, type AdminLevel } from "@/stores/mapStore";
 import { CheckIcon } from "lucide-vue-next";
 
@@ -32,24 +32,8 @@ onMounted(() => {
   mapStore.loadBoundaryLists();
 });
 
-// When sub-boundaries are first enabled, load the appropriate level data once
-watch(
-  () => mapStore.visibleSubBoundaryPcodes.size,
-  (newSize, oldSize) => {
-    // Only load data when transitioning from 0 to >0 (first sub-boundary selected)
-    // Don't reload on subsequent changes (Select All, Clear, individual toggles)
-    if (newSize > 0 && oldSize === 0) {
-      if (mapStore.activeLevel === "region") {
-        mapStore.loadMapData("province");
-      } else if (mapStore.activeLevel === "province") {
-        mapStore.loadMapData("city");
-      }
-    // When going from >0 to 0, reload the base level map to show the whole boundary
-    } else if (newSize === 0 && oldSize > 0 && mapStore.selectedBoundaryPcode) {
-      mapStore.loadMapData(mapStore.activeLevel);
-    }
-  },
-);
+// Sub-boundary data loading is handled directly in mapStore's
+// toggleSubBoundary, selectAllSubBoundaries, and clearSubBoundaries.
 </script>
 
 <template>

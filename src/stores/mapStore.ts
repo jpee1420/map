@@ -3,6 +3,10 @@ import { ref, computed } from 'vue';
 
 export type AdminLevel = 'region' | 'province' | 'city';
 
+// NCR special case: ADM2 districts are administrative only, not meaningful for data.
+// We skip the district layer and directly show city-level sub-boundaries.
+const NCR_PCODE = 'PH13';
+
 export interface BoundaryInfo {
   pcode: string;        // Unique identifier (ADMx_PCODE)
   name: string;         // Display name (ADMx_EN)
@@ -113,7 +117,9 @@ export const useMapStore = defineStore('map', () => {
           name: f.properties.ADM2_EN,
           parentRegionPcode: f.properties.ADM1_PCODE
         }))
-        .filter((p: BoundaryInfo) => p.pcode && p.name)
+        // Exclude NCR districts — they are purely administrative and not usable boundaries.
+        // NCR cities are accessed directly via ADM3 when NCR region is selected.
+        .filter((p: BoundaryInfo) => p.pcode && p.name && !p.pcode.startsWith(NCR_PCODE))
         .sort((a: BoundaryInfo, b: BoundaryInfo) => a.name.localeCompare(b.name));
     }
 
@@ -151,6 +157,10 @@ export const useMapStore = defineStore('map', () => {
     if (!selectedBoundaryPcode.value) return [];
 
     if (activeLevel.value === 'region') {
+      if (selectedBoundaryPcode.value === NCR_PCODE) {
+        // NCR special case: return cities directly (skip districts)
+        return cityList.value.filter(c => c.parentRegionPcode === NCR_PCODE);
+      }
       // Return provinces in this region
       return provinceList.value.filter(p => p.parentRegionPcode === selectedBoundaryPcode.value);
     } else if (activeLevel.value === 'province') {
@@ -178,24 +188,46 @@ export const useMapStore = defineStore('map', () => {
     // If no boundary selected, show all
     if (!selectedBoundaryPcode.value) return geoJSON.value;
 
-    // Filter features based on visible sub-boundary PCODEs
+    const sampleProps = geoJSON.value.features[0]?.properties || {};
+    // Detect if the currently loaded GeoJSON is a sub-level by checking its properties.
+    // Region level: sub-level = province (has ADM2_PCODE).
+    // Province level: sub-level = city (has ADM3_PCODE).
+    // NCR special case: sub-level at region is city (also has ADM3_PCODE).
+    const isNCR = activeLevel.value === 'region' && selectedBoundaryPcode.value === NCR_PCODE;
+    const isSubLevel = isNCR
+      ? !!sampleProps.ADM3_PCODE
+      : activeLevel.value === 'region' 
+        ? !!sampleProps.ADM2_PCODE 
+        : !!sampleProps.ADM3_PCODE;
+
+    // Filter features:
+    // If we have sub-boundaries visible, we are looking at the sub-level GeoJSON 
+    // (e.g. holding provinces for the selected region). We want to show ALL provinces 
+    // in that region, not just the checked ones, to maintain map context.
     const filtered = {
       ...geoJSON.value,
       features: geoJSON.value.features.filter((f: any) => {
         const props = f.properties;
         
         if (activeLevel.value === 'region') {
-          if (visibleSubBoundaryPcodes.value.size > 0) {
-            // Show provinces with matching PCODEs
-            return visibleSubBoundaryPcodes.value.has(props.ADM2_PCODE || props.pcode);
+          if (isNCR && isSubLevel) {
+            // NCR: show all city-level boundaries belonging to NCR
+            return props.ADM1_PCODE === NCR_PCODE;
           }
+          if (isSubLevel) {
+            // We are looking at provinces: keep all provinces belonging to the selected region
+            return props.ADM1_PCODE === selectedBoundaryPcode.value;
+          }
+          // We are looking at regions: keep only the selected region
           return props.ADM1_PCODE === selectedBoundaryPcode.value || props.pcode === selectedBoundaryPcode.value;
         }
         
         if (activeLevel.value === 'province') {
-          if (visibleSubBoundaryPcodes.value.size > 0) {
-            return visibleSubBoundaryPcodes.value.has(props.ADM3_PCODE || props.pcode);
+          if (isSubLevel) {
+            // We are looking at cities: keep all cities belonging to the selected province
+            return props.ADM2_PCODE === selectedBoundaryPcode.value;
           }
+          // We are looking at provinces: keep only the selected province
           return props.ADM2_PCODE === selectedBoundaryPcode.value || props.pcode === selectedBoundaryPcode.value;
         }
         
@@ -221,8 +253,13 @@ export const useMapStore = defineStore('map', () => {
     
     if (pcode) {
       // Load the sub-level GeoJSON data first
+      // For NCR at region level: skip districts, load cities directly
       if (activeLevel.value === 'region') {
-        await loadMapData('province');
+        if (pcode === NCR_PCODE) {
+          await loadMapData('city');
+        } else {
+          await loadMapData('province');
+        }
       } else if (activeLevel.value === 'province') {
         await loadMapData('city');
       }
@@ -231,7 +268,11 @@ export const useMapStore = defineStore('map', () => {
       // We manually query here to ensure we have the latest data immediately
       let subs: BoundaryInfo[] = [];
       if (activeLevel.value === 'region') {
-        subs = provinceList.value.filter(p => p.parentRegionPcode === pcode);
+        if (pcode === NCR_PCODE) {
+          subs = cityList.value.filter(c => c.parentRegionPcode === NCR_PCODE);
+        } else {
+          subs = provinceList.value.filter(p => p.parentRegionPcode === pcode);
+        }
       } else if (activeLevel.value === 'province') {
         subs = cityList.value.filter(c => c.parentProvincePcode === pcode);
       }
@@ -245,7 +286,9 @@ export const useMapStore = defineStore('map', () => {
     visibleSubBoundaryPcodes.value = newSet;
   }
 
-  function toggleSubBoundary(pcode: string): void {
+  async function toggleSubBoundary(pcode: string): Promise<void> {
+    const wasEmpty = visibleSubBoundaryPcodes.value.size === 0;
+
     if (visibleSubBoundaryPcodes.value.has(pcode)) {
       visibleSubBoundaryPcodes.value.delete(pcode);
     } else {
@@ -253,16 +296,46 @@ export const useMapStore = defineStore('map', () => {
     }
     // Trigger reactivity
     visibleSubBoundaryPcodes.value = new Set(visibleSubBoundaryPcodes.value);
+
+    const isNowEmpty = visibleSubBoundaryPcodes.value.size === 0;
+
+    // First sub-boundary checked: load the sub-level GeoJSON
+    if (wasEmpty && !isNowEmpty) {
+      if (activeLevel.value === 'region') {
+        await loadMapData('province');
+      } else if (activeLevel.value === 'province') {
+        await loadMapData('city');
+      }
+    }
+    // Last sub-boundary unchecked: reload base-level GeoJSON
+    if (!wasEmpty && isNowEmpty && selectedBoundaryPcode.value) {
+      await loadMapData(activeLevel.value);
+    }
   }
 
-  function selectAllSubBoundaries(): void {
-    subBoundaries.value.forEach(b => visibleSubBoundaryPcodes.value.add(b.pcode));
-    visibleSubBoundaryPcodes.value = new Set(visibleSubBoundaryPcodes.value);
+  async function selectAllSubBoundaries(): Promise<void> {
+    // Ensure sub-level GeoJSON is loaded so filteredGeoJSON can filter it
+    if (activeLevel.value === 'region') {
+      // NCR special case: load cities directly
+      if (selectedBoundaryPcode.value === NCR_PCODE) {
+        await loadMapData('city');
+      } else {
+        await loadMapData('province');
+      }
+    } else if (activeLevel.value === 'province') {
+      await loadMapData('city');
+    }
+    const newSet = new Set<string>();
+    subBoundaries.value.forEach(b => newSet.add(b.pcode));
+    visibleSubBoundaryPcodes.value = newSet;
   }
 
-  function clearSubBoundaries(): void {
-    visibleSubBoundaryPcodes.value.clear();
+  async function clearSubBoundaries(): Promise<void> {
     visibleSubBoundaryPcodes.value = new Set();
+    // Reload base-level GeoJSON so filteredGeoJSON shows parent boundary shape
+    if (selectedBoundaryPcode.value) {
+      await loadMapData(activeLevel.value);
+    }
   }
 
   function toggleLabels(): void {

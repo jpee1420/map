@@ -33,6 +33,7 @@ const props = defineProps<{
   chartInstance: EChartsType;
   geoData: { features: GeoFeature[] } | unknown;
   mapData: Array<Record<string, unknown>>;
+  globalTotal?: number;
 }>();
 
 const callouts = ref<CalloutItem[]>([]);
@@ -143,11 +144,14 @@ function applyCollisionForce(items: CalloutItem[], viewW: number, viewH: number)
 // ─── Update Callouts ───────────────────────────────────────────
 
 function updateCallouts(): void {
-  // Calculate global total for percentage distribution
-  const globalTotal = props.mapData.reduce((sum, row) => {
-    const val = row.value as number | string;
-    return sum + (typeof val === 'number' ? val : 0);
-  }, 0);
+  // Use provided global total from parent (which ignores checkbox filters) for stable percentages,
+  // or fallback to summing visible data if not provided
+  const globalTotal = props.globalTotal !== undefined 
+    ? props.globalTotal 
+    : props.mapData.reduce((sum, row) => {
+        const val = row.value as number | string;
+        return sum + (typeof val === 'number' ? val : 0);
+      }, 0);
 
   if (!props.chartInstance || props.chartInstance.isDisposed?.()) {
     callouts.value = [];

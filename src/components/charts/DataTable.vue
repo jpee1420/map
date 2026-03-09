@@ -11,6 +11,7 @@ const props = defineProps<{
 const dataStore = useDataStore();
 const uiStore = useUIStore();
 
+const globalSearch = ref('');
 const activeTab = computed(() => uiStore.tabs.find(t => t.id === props.tabId));
 const filters = computed(() => activeTab.value?.filters || []);
 
@@ -20,6 +21,7 @@ const filteredData = computed(() => {
   if (!dataset) return [];
   let data = [...dataset.data];
 
+  // Apply column-specific filters
   for (const filter of filters.value) {
     const col = filter.column;
 
@@ -45,6 +47,17 @@ const filteredData = computed(() => {
         return true;
       });
     }
+  }
+
+  // Apply global search across all columns
+  const search = globalSearch.value.trim().toLowerCase();
+  if (search) {
+    data = data.filter(row => {
+      // Check if any value in the row contains the search string
+      return Object.values(row).some(val => 
+        String(val ?? '').toLowerCase().includes(search)
+      );
+    });
   }
 
   return data;
@@ -148,7 +161,31 @@ watch(filteredData, () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
+  <div class="flex flex-col h-full gap-3">
+    <!-- Header items: Global Search -->
+    <div class="flex justify-between items-end">
+      <div class="w-72">
+        <label for="global-search" class="sr-only">Search</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <input
+            id="global-search"
+            v-model="globalSearch"
+            type="text"
+            class="block w-full pl-10 pr-3 py-1.5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+            placeholder="Search all columns..."
+          />
+        </div>
+      </div>
+      <div class="text-xs text-gray-500">
+        Showing {{ totalRows }} records
+      </div>
+    </div>
+
     <!-- Table -->
     <div class="flex-1 overflow-auto border border-gray-200 rounded-lg">
       <table class="w-full text-sm">

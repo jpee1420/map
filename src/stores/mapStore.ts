@@ -37,6 +37,12 @@ export const useMapStore = defineStore('map', () => {
   const provinceList = ref<BoundaryInfo[]>([]);
   const cityList = ref<BoundaryInfo[]>([]);
 
+  const API_ENDPOINTS: Record<string, string> = {
+    region: `${import.meta.env.BASE_URL}geojson/phl_admbnda_adm1_psa_namria_20231106.json`,
+    province: `${import.meta.env.BASE_URL}geojson/phl_admbnda_adm2_psa_namria_20231106.json`,
+    city: `${import.meta.env.BASE_URL}geojson/phl_admbnda_adm3_psa_namria_20231106.json`,
+  };
+
   async function loadMapData(level: string): Promise<any> {
     if (geoJsonCache.has(level)) {
       const cached = geoJsonCache.get(level);
@@ -46,22 +52,17 @@ export const useMapStore = defineStore('map', () => {
 
     isLoading.value = true;
     try {
-      let data;
-      switch (level) {
-        case 'region':
-          data = await import('@/assets/geojson/phl_admbnda_adm1_psa_namria_20231106.json');
-          break;
-        case 'province':
-          data = await import('@/assets/geojson/phl_admbnda_adm2_psa_namria_20231106.json');
-          break;
-        case 'city':
-          data = await import('@/assets/geojson/phl_admbnda_adm3_psa_namria_20231106.json');
-          break;
-        default:
-          throw new Error(`Unknown level: ${level}`);
+      const endpoint = API_ENDPOINTS[level];
+      if (!endpoint) {
+        throw new Error(`Unknown level: ${level}`);
       }
 
-      const geoData = data.default || data;
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${level} GeoJSON: ${response.statusText}`);
+      }
+
+      const geoData = await response.json();
 
       // Normalize properties: Ensure 'name' and 'pcode' exist for ECharts
       if (geoData.features) {
@@ -86,7 +87,6 @@ export const useMapStore = defineStore('map', () => {
       geoJSON.value = geoData;
       return geoData;
     } catch (error) {
-      console.error(error);
       geoJSON.value = null;
       return null;
     } finally {

@@ -12,7 +12,6 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 2500, // Increase warning limit for large geojson files
     rollupOptions: {
       output: {
         manualChunks(id) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, shallowRef, computed, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch, shallowRef, computed } from "vue";
 import * as echarts from "echarts";
 import { useMapStore } from "@/stores/mapStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -615,18 +615,7 @@ watch(
   { deep: true },
 );
 
-// Force ECharts to resize when checkbox states change.
-// This works around a bug where sidebar layout shifts (e.g. scrollbar changes
-// or text size changes when unchecking specific items like the 11th item) 
-// clip the map canvas without triggering the native ResizeObserver.
-watch(
-  () => mapStore.visibleSubBoundaryPcodes,
-  async () => {
-    await nextTick();
-    chartInstance.value?.resize();
-  },
-  { deep: true }
-);
+// Use ResizeObserver natively in onMounted to handle container fluid resizing
 
 // Single watcher for all map data changes — filteredGeoJSON always returns
 // the correct GeoJSON to render (filtered for sub-boundaries, or raw otherwise)
@@ -654,8 +643,6 @@ const resizeObserver = new ResizeObserver(() => {
 function onMapClick(params: any) {
   if (params.componentType === "geo") {
     const clickedName = params.name;
-    console.log("Clicked:", clickedName);
-
     // Find the PCODE for the clicked boundary by name
     const boundary = mapStore.boundariesForLevel.find(
       (b) => b.name === clickedName,

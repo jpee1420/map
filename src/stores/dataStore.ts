@@ -15,7 +15,6 @@ export const useDataStore = defineStore('data', () => {
       dataset.value = await parseFile(file);
     } catch (e: any) {
       error.value = e.message || 'Failed to load data';
-      console.error(e);
     } finally {
       isLoading.value = false;
     }

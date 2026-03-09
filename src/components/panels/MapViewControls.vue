@@ -120,7 +120,7 @@ onMounted(() => {
         <label
           v-for="sub in mapStore.subBoundaries"
           :key="sub.pcode"
-          class="flex items-center gap-2 p-1.5 rounded hover:bg-white cursor-pointer group"
+          class="flex items-center gap-2 p-1.5 rounded hover:bg-white cursor-pointer group relative"
         >
           <div
             class="w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0"
@@ -135,11 +135,15 @@ onMounted(() => {
               class="w-3 h-3 text-white"
             />
           </div>
+          <!-- 
+            Use absolute opacity-0 w-0 h-0 pointer-events-none instead of sr-only to prevent
+            browser scroll-to-focus layout shifting bug that clips the ECharts canvas 
+          -->
           <input
             type="checkbox"
             :checked="isSubBoundaryVisible(sub.pcode)"
             @change="mapStore.toggleSubBoundary(sub.pcode)"
-            class="sr-only"
+            class="absolute opacity-0 w-0 h-0 pointer-events-none"
           />
           <span class="text-sm text-gray-700 truncate">{{ sub.name }}</span>
           <span class="text-xs text-gray-400 ml-auto shrink-0">{{

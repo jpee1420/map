@@ -32,4 +32,5 @@ test-files/
 public/data/*
 scripts/*
 prompt.md
+.agents/
 .gitignore

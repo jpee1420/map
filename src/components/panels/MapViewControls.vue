@@ -135,10 +135,7 @@ onMounted(() => {
               class="w-3 h-3 text-white"
             />
           </div>
-          <!-- 
-            Use absolute opacity-0 w-0 h-0 pointer-events-none instead of sr-only to prevent
-            browser scroll-to-focus layout shifting bug that clips the ECharts canvas 
-          -->
+
           <input
             type="checkbox"
             :checked="isSubBoundaryVisible(sub.pcode)"

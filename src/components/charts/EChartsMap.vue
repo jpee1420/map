@@ -154,14 +154,19 @@ const featureLookup = computed<GeoFeatureEntry[]>(() => {
     const props = f.properties || {};
     const name: string =
       props.name || props.ADM1_EN || props.ADM2_EN || props.ADM3_EN || '';
+    
+    // Determine the most specific PCODE for this feature
+    const pcode: string = props.pcode || props.ADM3_PCODE || props.ADM2_PCODE || props.ADM1_PCODE || '';
+    
     return {
       name,
       nameUpper: name.toUpperCase(),
       nameNorm: normalize(name),
-      pcode: (props.pcode || '') as string,
+      pcode,
       adm1: (props.ADM1_EN || '') as string,
       adm2: (props.ADM2_EN || '') as string,
       adm3: (props.ADM3_EN || '') as string,
+      adm1_pcode: (props.ADM1_PCODE || '') as string,
       adm2_pcode: (props.ADM2_PCODE || '') as string,
       adm3_pcode: (props.ADM3_PCODE || '') as string,
     };
@@ -260,20 +265,7 @@ const admColumnsByHeader = computed<{
  * Build the GeoJSON name lookup map from the currently filtered GeoJSON.
  * Used as a simple name→displayName resolver when no parent context is needed.
  */
-const geoNameMap = computed(() => {
-  const map = new Map<string, string>();
-  for (const f of featureLookup.value) {
-    map.set(f.nameUpper, f.name);
-    map.set(f.nameNorm, f.name);
-    // Alias from parentheses
-    const aliasMatch = f.name.match(/\(([^)]+)\)/);
-    if (aliasMatch?.[1]) {
-      map.set(aliasMatch[1].toUpperCase(), f.name);
-      map.set(normalize(aliasMatch[1]), f.name);
-    }
-  }
-  return map;
-});
+// geoNameMap removed since we now use PCODEs and featureLookup directly
 
 /**
  * Match a CSV row's geographic value to a GeoJSON feature name,
@@ -282,7 +274,7 @@ const geoNameMap = computed(() => {
 function matchGeoNameForRow(
   raw: string,
   row: Record<string, unknown>,
-): string {
+): GeoFeatureEntry | null {
   const rawUpper = raw.toUpperCase();
   const rawNorm = normalize(raw);
   const features = featureLookup.value;
@@ -294,13 +286,13 @@ function matchGeoNameForRow(
       f.nameNorm === rawNorm,
   );
 
-  // No match at all → fall back to simple lookup or raw
+  // No match at all → null
   if (candidates.length === 0) {
-    return geoNameMap.value.get(rawUpper) || geoNameMap.value.get(rawNorm) || raw;
+    return null;
   }
 
   // Only one candidate → no ambiguity
-  if (candidates.length === 1) return candidates[0]!.name;
+  if (candidates.length === 1) return candidates[0]!;
 
   // Multiple candidates → disambiguate using parent columns
   const { regionCol, provinceCol } = admColumnsByHeader.value;
@@ -333,11 +325,11 @@ function matchGeoNameForRow(
       }
     }
 
-    if (parentMatch) return cand.name;
+    if (parentMatch) return cand;
   }
 
   // No parent match found — return first candidate as fallback
-  return candidates[0]!.name;
+  return candidates[0]!;
 }
 
 const allAggregatedData = computed(() => {
@@ -371,17 +363,25 @@ const allAggregatedData = computed(() => {
     {
       rows: Array<Record<string, unknown>>;
       breakdowns: Map<string, number>;
+      name: string;
     }
   >();
 
   for (const row of data) {
     const geoRaw = String(row[geoDim] || "");
-    const matchedGeo = matchGeoNameForRow(geoRaw, row);
+    const matchedFeature = matchGeoNameForRow(geoRaw, row);
+    if (!matchedFeature) continue;
 
-    if (!groups.has(matchedGeo)) {
-      groups.set(matchedGeo, { rows: [], breakdowns: new Map() });
+    const groupKey = matchedFeature.pcode;
+
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, { 
+        rows: [], 
+        breakdowns: new Map(),
+        name: matchedFeature.name 
+      });
     }
-    const group = groups.get(matchedGeo)!;
+    const group = groups.get(groupKey)!;
     group.rows.push(row);
 
     // Build breakdown from breakdown/dimension fields
@@ -394,7 +394,7 @@ const allAggregatedData = computed(() => {
   }
 
   // Aggregate each group
-  return Array.from(groups.entries()).map(([geoName, group]) => {
+  return Array.from(groups.entries()).map(([pcode, group]) => {
     // Compute main value: use first metric (aggregated), or default to record count
     let mainValue: number;
 
@@ -423,7 +423,8 @@ const allAggregatedData = computed(() => {
     }
 
     const item: Record<string, unknown> = {
-      name: geoName,
+      name: pcode, // Use PCODE as the item name for ECharts binding
+      displayName: group.name, // Friendly name for tooltips/callouts
       value: mainValue,
     };
 
@@ -449,7 +450,7 @@ const allAggregatedData = computed(() => {
 const fixedMapTotal = computed(() => {
   return allAggregatedData.value.reduce((sum, item) => {
     // Only sum data for items that exist in the current map boundaries
-    if (!featureLookup.value.some(f => f.name === item.name)) {
+    if (!featureLookup.value.some(f => f.pcode === item.name)) {
       return sum;
     }
     const val = typeof item.value === 'number' ? item.value : 0;
@@ -465,7 +466,7 @@ const mapData = computed(() => {
   }
 
   return allAggregatedData.value.filter(item => {
-    const feature = featureLookup.value.find(f => f.name === item.name);
+    const feature = featureLookup.value.find(f => f.pcode === item.name);
     if (!feature) return true;
     
     // For NCR at region level, sub-boundaries are cities (ADM3), not provinces (ADM2)
@@ -525,19 +526,20 @@ function getOptions() {
         color: "#1f2937",
       },
       formatter: (params: any) => {
-        const name = params.name || "Unknown";
-        const dataItem = mapData.value.find((d: any) => d.name === name);
+        const pcode = params.name || "";
+        const dataItem = mapData.value.find((d: any) => d.name === pcode);
+        const displayName = dataItem?.displayName || params.name || "Unknown";
 
         if (!dataItem) {
-          return `<div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${name}</div><div style="color: #6b7280;">No data available</div>`;
+          return `<div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${displayName}</div><div style="color: #6b7280;">No data available</div>`;
         }
 
         // Build tooltip with all metrics
-        let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1f2937;">${name}</div>`;
+        let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1f2937;">${displayName}</div>`;
 
         // Get all numeric properties as metrics
         const metricEntries = Object.entries(dataItem).filter(
-          ([key, val]) => key !== "name" && typeof val === "number",
+          ([key, val]) => key !== "name" && key !== "displayName" && typeof val === "number",
         );
 
         if (metricEntries.length > 0) {
@@ -580,6 +582,7 @@ function getOptions() {
         areaColor: "#e5e7eb",
         borderColor: "#fff",
       },
+      nameProperty: (mapStore.activeLevel === 'region' ? 'ADM1_PCODE' : (mapStore.activeLevel === 'province' ? 'ADM2_PCODE' : 'ADM3_PCODE')),
       select: {
         itemStyle: {
           areaColor: "#60a5fa",
@@ -642,10 +645,9 @@ const resizeObserver = new ResizeObserver(() => {
 
 function onMapClick(params: any) {
   if (params.componentType === "geo") {
-    const clickedName = params.name;
-    // Find the PCODE for the clicked boundary by name
+    const pcode = params.name;
     const boundary = mapStore.boundariesForLevel.find(
-      (b) => b.name === clickedName,
+      (b) => b.pcode === pcode,
     );
     if (boundary) {
       mapStore.selectBoundary(boundary.pcode);

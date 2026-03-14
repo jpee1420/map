@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, reactive } from 'vue';
+import { useUIStore } from '@/stores/uiStore';
 
 export type AdminLevel = 'region' | 'province' | 'city';
 
@@ -14,23 +15,102 @@ export interface BoundaryInfo {
   parentProvincePcode?: string;
 }
 
+/** Per-tab map view state */
+export interface TabMapState {
+  activeLevel: AdminLevel;
+  selectedBoundaryPcode: string | null;
+  visibleSubBoundaryPcodes: Set<string>;
+  showLabels: boolean;
+}
+
+function createDefaultTabMapState(): TabMapState {
+  return {
+    activeLevel: 'region',
+    selectedBoundaryPcode: null,
+    visibleSubBoundaryPcodes: new Set(),
+    showLabels: true,
+  };
+}
+
 export const useMapStore = defineStore('map', () => {
-  // Current view level
-  const activeLevel = ref<AdminLevel>('region');
-  
-  // Selected boundary PCODE at current level
-  const selectedBoundaryPcode = ref<string | null>(null);
-  
-  // Set of visible sub-boundary PCODEs (checked checkboxes)
-  const visibleSubBoundaryPcodes = ref<Set<string>>(new Set());
-  
-  // Raw GeoJSON data for each level
-  const geoJSON = ref<any>(null);
+  const uiStore = useUIStore();
+
+  // ─── Per-tab state dictionary ───────────────────────────────────────
+  const tabStates = reactive<Record<string, TabMapState>>({});
+
+  /** Get or create state for a given tab */
+  function getTabState(tabId: string): TabMapState {
+    if (!tabStates[tabId]) {
+      tabStates[tabId] = createDefaultTabMapState();
+    }
+    return tabStates[tabId];
+  }
+
+  /** Active tab's map state (always defined) */
+  const activeTabState = computed<TabMapState>(() => {
+    return getTabState(uiStore.activeTabId);
+  });
+
+  // Clean up state when tabs are removed
+  watch(
+    () => uiStore.tabs,
+    (tabs) => {
+      const tabIds = new Set(tabs.map(t => t.id));
+      for (const id of Object.keys(tabStates)) {
+        if (!tabIds.has(id)) {
+          delete tabStates[id];
+        }
+      }
+    },
+    { deep: true },
+  );
+
+  // ─── Proxied properties (read/write to active tab) ─────────────────
+  const activeLevel = computed<AdminLevel>({
+    get: () => activeTabState.value.activeLevel,
+    set: (v) => { activeTabState.value.activeLevel = v; },
+  });
+
+  const selectedBoundaryPcode = computed<string | null>({
+    get: () => activeTabState.value.selectedBoundaryPcode,
+    set: (v) => { activeTabState.value.selectedBoundaryPcode = v; },
+  });
+
+  const visibleSubBoundaryPcodes = computed<Set<string>>({
+    get: () => activeTabState.value.visibleSubBoundaryPcodes,
+    set: (v) => { activeTabState.value.visibleSubBoundaryPcodes = v; },
+  });
+
+  const showLabels = computed<boolean>({
+    get: () => activeTabState.value.showLabels,
+    set: (v) => { activeTabState.value.showLabels = v; },
+  });
+
+  // ─── GeoJSON cache (shared across all tabs) ────────────────────────
   const geoJsonCache = new Map<string, any>();
   const isLoading = ref(false);
-  
-  // Callout labels visibility
-  const showLabels = ref(true);
+
+  /**
+   * Determine which GeoJSON cache key the active tab needs.
+   * When a boundary is selected, we need the sub-level GeoJSON.
+   */
+  const activeGeoJSONLevel = computed<string>(() => {
+    const state = activeTabState.value;
+    if (state.selectedBoundaryPcode) {
+      if (state.activeLevel === 'region') {
+        return state.selectedBoundaryPcode === NCR_PCODE ? 'city' : 'province';
+      }
+      if (state.activeLevel === 'province') {
+        return 'city';
+      }
+    }
+    return state.activeLevel;
+  });
+
+  // The active GeoJSON for the current tab, pulled from cache
+  const geoJSON = computed<any>(() => {
+    return geoJsonCache.get(activeGeoJSONLevel.value) ?? null;
+  });
 
   // Extracted boundary lists for dropdowns (with PCODEs)
   const regionList = ref<BoundaryInfo[]>([]);
@@ -45,9 +125,7 @@ export const useMapStore = defineStore('map', () => {
 
   async function loadMapData(level: string): Promise<any> {
     if (geoJsonCache.has(level)) {
-      const cached = geoJsonCache.get(level);
-      geoJSON.value = cached;
-      return cached;
+      return geoJsonCache.get(level);
     }
 
     isLoading.value = true;
@@ -84,10 +162,8 @@ export const useMapStore = defineStore('map', () => {
       }
 
       geoJsonCache.set(level, geoData);
-      geoJSON.value = geoData;
       return geoData;
     } catch (error) {
-      geoJSON.value = null;
       return null;
     } finally {
       isLoading.value = false;
@@ -134,9 +210,6 @@ export const useMapStore = defineStore('map', () => {
         .filter((c: BoundaryInfo) => c.pcode && c.name)
         .sort((a: BoundaryInfo, b: BoundaryInfo) => a.name.localeCompare(b.name));
     }
-    
-    // Restore the map data for the current active level so the map renders correctly
-    await loadMapData(activeLevel.value);
   }
 
   // Get selected boundary info
@@ -190,9 +263,6 @@ export const useMapStore = defineStore('map', () => {
 
     const sampleProps = geoJSON.value.features[0]?.properties || {};
     // Detect if the currently loaded GeoJSON is a sub-level by checking its properties.
-    // Region level: sub-level = province (has ADM2_PCODE).
-    // Province level: sub-level = city (has ADM3_PCODE).
-    // NCR special case: sub-level at region is city (also has ADM3_PCODE).
     const isNCR = activeLevel.value === 'region' && selectedBoundaryPcode.value === NCR_PCODE;
     const isSubLevel = isNCR
       ? !!sampleProps.ADM3_PCODE
@@ -200,10 +270,6 @@ export const useMapStore = defineStore('map', () => {
         ? !!sampleProps.ADM2_PCODE 
         : !!sampleProps.ADM3_PCODE;
 
-    // Filter features:
-    // If we have sub-boundaries visible, we are looking at the sub-level GeoJSON 
-    // (e.g. holding provinces for the selected region). We want to show ALL provinces 
-    // in that region, not just the checked ones, to maintain map context.
     const filtered = {
       ...geoJSON.value,
       features: geoJSON.value.features.filter((f: any) => {
@@ -241,7 +307,7 @@ export const useMapStore = defineStore('map', () => {
   function setLevel(level: AdminLevel): void {
     activeLevel.value = level;
     selectedBoundaryPcode.value = null;
-    visibleSubBoundaryPcodes.value.clear();
+    visibleSubBoundaryPcodes.value = new Set();
     loadMapData(level);
   }
 
@@ -253,7 +319,6 @@ export const useMapStore = defineStore('map', () => {
     
     if (pcode) {
       // Load the sub-level GeoJSON data first
-      // For NCR at region level: skip districts, load cities directly
       if (activeLevel.value === 'region') {
         if (pcode === NCR_PCODE) {
           await loadMapData('city');
@@ -264,8 +329,7 @@ export const useMapStore = defineStore('map', () => {
         await loadMapData('city');
       }
       
-      // Logic from sub-boundaries computed property
-      // We manually query here to ensure we have the latest data immediately
+      // Compute sub-boundaries and select all by default
       let subs: BoundaryInfo[] = [];
       if (activeLevel.value === 'region') {
         if (pcode === NCR_PCODE) {
@@ -279,7 +343,7 @@ export const useMapStore = defineStore('map', () => {
       
       subs.forEach(sub => newSet.add(sub.pcode));
     } else {
-      // When clearing selection, reload the current level
+      // When clearing selection, ensure current level data is loaded
       await loadMapData(activeLevel.value);
     }
     
@@ -316,7 +380,6 @@ export const useMapStore = defineStore('map', () => {
   async function selectAllSubBoundaries(): Promise<void> {
     // Ensure sub-level GeoJSON is loaded so filteredGeoJSON can filter it
     if (activeLevel.value === 'region') {
-      // NCR special case: load cities directly
       if (selectedBoundaryPcode.value === NCR_PCODE) {
         await loadMapData('city');
       } else {
@@ -356,6 +419,8 @@ export const useMapStore = defineStore('map', () => {
     subBoundaries,
     boundariesForLevel,
     filteredGeoJSON,
+    tabStates,
+    getTabState,
     setLevel,
     selectBoundary,
     toggleSubBoundary,

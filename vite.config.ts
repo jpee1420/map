@@ -12,6 +12,7 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -19,17 +20,13 @@ export default defineConfig({
             if (id.includes('echarts') || id.includes('zrender')) {
               return 'echarts-vendor';
             }
+            if (id.includes('xlsx')) {
+              return 'xlsx-vendor';
+            }
             if (id.includes('vue') || id.includes('@vue') || id.includes('pinia') || id.includes('vue-router')) {
               return 'vue-vendor';
             }
             return 'vendor';
-          }
-          if (id.includes('src/assets/geojson/')) {
-            // Put each geojson file into its own chunk
-            const match = id.match(/([^/]+)\.json$/);
-            if (match) {
-              return match[1];
-            }
           }
         }
       }

@@ -38,7 +38,7 @@ const props = defineProps<{
 
 const callouts = ref<CalloutItem[]>([]);
 
-// Centroid cache keyed by boundary name
+// Centroid cache keyed by PCODE
 const centroidCache = new Map<string, [number, number]>();
 
 // Drag state
@@ -72,10 +72,13 @@ function buildCentroidCache(): void {
   if (!geo?.features) return;
 
   for (const feature of geo.features) {
-    const name = feature.properties.name as string | undefined;
-    if (!name) continue;
+    const props = feature.properties || {};
+    // Extract PCODE using the same priority as EChartsMap
+    const pcode = (props.pcode || props.ADM3_PCODE || props.ADM2_PCODE || props.ADM1_PCODE) as string | undefined;
+    if (!pcode) continue;
+    
     const center = calculateCentroid(feature.geometry);
-    if (center) centroidCache.set(name, center);
+    if (center) centroidCache.set(pcode, center);
   }
 }
 
@@ -170,10 +173,11 @@ function updateCallouts(): void {
   const items: CalloutItem[] = [];
 
   for (const row of props.mapData) {
-    const name = row.name as string | undefined;
-    if (!name) continue;
+    const pcode = row.name as string | undefined;
+    const displayName = (row.displayName as string) || pcode || "Unknown";
+    if (!pcode) continue;
 
-    const center = centroidCache.get(name);
+    const center = centroidCache.get(pcode);
     if (!center) continue;
 
     const pixel = props.chartInstance.convertToPixel("geo", center);
@@ -184,8 +188,8 @@ function updateCallouts(): void {
 
     if (px < -80 || px > viewW + 80 || py < -80 || py > viewH + 80) continue;
 
-    const wasPinned = pinnedPositions.has(name);
-    const pinnedPos = pinnedPositions.get(name);
+    const wasPinned = pinnedPositions.has(pcode);
+    const pinnedPos = pinnedPositions.get(pcode);
 
     // Extract breakdown data from the row if present
     const breakdowns = row.breakdowns as BreakdownEntry[] | undefined;
@@ -197,8 +201,8 @@ function updateCallouts(): void {
       : 0;
 
     items.push({
-      id: name,
-      name,
+      id: pcode,
+      name: displayName,
       x: wasPinned ? pinnedPos!.x : px + LEADER_LEN,
       y: wasPinned ? pinnedPos!.y : py - LEADER_LEN,
       targetX: px,

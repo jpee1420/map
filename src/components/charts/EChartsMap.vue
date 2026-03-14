@@ -154,19 +154,14 @@ const featureLookup = computed<GeoFeatureEntry[]>(() => {
     const props = f.properties || {};
     const name: string =
       props.name || props.ADM1_EN || props.ADM2_EN || props.ADM3_EN || '';
-    
-    // Determine the most specific PCODE for this feature
-    const pcode: string = props.pcode || props.ADM3_PCODE || props.ADM2_PCODE || props.ADM1_PCODE || '';
-    
     return {
       name,
       nameUpper: name.toUpperCase(),
       nameNorm: normalize(name),
-      pcode,
+      pcode: (props.pcode || '') as string,
       adm1: (props.ADM1_EN || '') as string,
       adm2: (props.ADM2_EN || '') as string,
       adm3: (props.ADM3_EN || '') as string,
-      adm1_pcode: (props.ADM1_PCODE || '') as string,
       adm2_pcode: (props.ADM2_PCODE || '') as string,
       adm3_pcode: (props.ADM3_PCODE || '') as string,
     };
@@ -265,16 +260,73 @@ const admColumnsByHeader = computed<{
  * Build the GeoJSON name lookup map from the currently filtered GeoJSON.
  * Used as a simple name→displayName resolver when no parent context is needed.
  */
-// geoNameMap removed since we now use PCODEs and featureLookup directly
+const geoNameMap = computed(() => {
+  const map = new Map<string, string>();
+  for (const f of featureLookup.value) {
+    map.set(f.nameUpper, f.name);
+    map.set(f.nameNorm, f.name);
+    // Alias from parentheses
+    const aliasMatch = f.name.match(/\(([^)]+)\)/);
+    if (aliasMatch?.[1]) {
+      map.set(aliasMatch[1].toUpperCase(), f.name);
+      map.set(normalize(aliasMatch[1]), f.name);
+    }
+  }
+  return map;
+});
+
+/**
+ * Check whether a CSV row's parent columns (Region, Province) match a
+ * GeoJSON feature candidate.  Returns false when any available parent
+ * column contradicts the candidate.  When no parent columns exist in
+ * the dataset the check is vacuously true.
+ */
+function isParentMatch(
+  cand: GeoFeatureEntry,
+  row: Record<string, unknown>,
+): boolean {
+  const { regionCol, provinceCol } = admColumnsByHeader.value;
+
+  // Check region parent
+  if (regionCol && cand.adm1) {
+    const rowRegion = String(row[regionCol] || '');
+    if (rowRegion) {
+      const candRegionNorm = normalize(cand.adm1);
+      const rowRegionNorm = normalize(rowRegion);
+      const candRegionAlias = cand.adm1.match(/\(([^)]+)\)/);
+      const aliasNorm = candRegionAlias?.[1] ? normalize(candRegionAlias[1]) : '';
+      if (
+        rowRegionNorm !== candRegionNorm &&
+        rowRegionNorm !== aliasNorm &&
+        rowRegion.toUpperCase() !== cand.adm1.toUpperCase()
+      ) {
+        return false;
+      }
+    }
+  }
+
+  // Check province parent
+  if (provinceCol && cand.adm2) {
+    const rowProvince = String(row[provinceCol] || '');
+    if (rowProvince && normalize(rowProvince) !== normalize(cand.adm2)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /**
  * Match a CSV row's geographic value to a GeoJSON feature name,
  * using the row's parent columns (Region, Province) for disambiguation.
+ *
+ * Returns `null` when the row does not belong to any visible feature
+ * (e.g. a "Santo Tomas" row from La Union when viewing Pangasinan).
  */
 function matchGeoNameForRow(
   raw: string,
   row: Record<string, unknown>,
-): GeoFeatureEntry | null {
+): string | null {
   const rawUpper = raw.toUpperCase();
   const rawNorm = normalize(raw);
   const features = featureLookup.value;
@@ -286,50 +338,25 @@ function matchGeoNameForRow(
       f.nameNorm === rawNorm,
   );
 
-  // No match at all → null
+  // No match at all → fall back to simple lookup or raw
   if (candidates.length === 0) {
+    return geoNameMap.value.get(rawUpper) || geoNameMap.value.get(rawNorm) || raw;
+  }
+
+  // Filter candidates by parent context (Region / Province columns)
+  const { regionCol, provinceCol } = admColumnsByHeader.value;
+  const hasParentCols = !!(regionCol || provinceCol);
+
+  if (hasParentCols) {
+    for (const cand of candidates) {
+      if (isParentMatch(cand, row)) return cand.name;
+    }
+    // Parent columns exist but none matched → row doesn't belong here
     return null;
   }
 
-  // Only one candidate → no ambiguity
-  if (candidates.length === 1) return candidates[0]!;
-
-  // Multiple candidates → disambiguate using parent columns
-  const { regionCol, provinceCol } = admColumnsByHeader.value;
-
-  for (const cand of candidates) {
-    let parentMatch = true;
-
-    // Check region parent
-    if (regionCol && cand.adm1) {
-      const rowRegion = String(row[regionCol] || '');
-      const candRegionNorm = normalize(cand.adm1);
-      const rowRegionNorm = normalize(rowRegion);
-      // Also check alias (e.g., "CAR" matches "Cordillera Administrative Region (CAR)")
-      const candRegionAlias = cand.adm1.match(/\(([^)]+)\)/);
-      const aliasNorm = candRegionAlias?.[1] ? normalize(candRegionAlias[1]) : '';
-      if (
-        rowRegionNorm !== candRegionNorm &&
-        rowRegionNorm !== aliasNorm &&
-        rowRegion.toUpperCase() !== cand.adm1.toUpperCase()
-      ) {
-        parentMatch = false;
-      }
-    }
-
-    // Check province parent
-    if (parentMatch && provinceCol && cand.adm2) {
-      const rowProvince = String(row[provinceCol] || '');
-      if (rowProvince && normalize(rowProvince) !== normalize(cand.adm2)) {
-        parentMatch = false;
-      }
-    }
-
-    if (parentMatch) return cand;
-  }
-
-  // No parent match found — return first candidate as fallback
-  return candidates[0]!;
+  // No parent columns available → return first candidate as best-effort
+  return candidates[0]!.name;
 }
 
 const allAggregatedData = computed(() => {
@@ -363,25 +390,20 @@ const allAggregatedData = computed(() => {
     {
       rows: Array<Record<string, unknown>>;
       breakdowns: Map<string, number>;
-      name: string;
     }
   >();
 
   for (const row of data) {
     const geoRaw = String(row[geoDim] || "");
-    const matchedFeature = matchGeoNameForRow(geoRaw, row);
-    if (!matchedFeature) continue;
+    const matchedGeo = matchGeoNameForRow(geoRaw, row);
 
-    const groupKey = matchedFeature.pcode;
+    // null means the row doesn't belong to any visible boundary
+    if (matchedGeo === null) continue;
 
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, { 
-        rows: [], 
-        breakdowns: new Map(),
-        name: matchedFeature.name 
-      });
+    if (!groups.has(matchedGeo)) {
+      groups.set(matchedGeo, { rows: [], breakdowns: new Map() });
     }
-    const group = groups.get(groupKey)!;
+    const group = groups.get(matchedGeo)!;
     group.rows.push(row);
 
     // Build breakdown from breakdown/dimension fields
@@ -394,7 +416,7 @@ const allAggregatedData = computed(() => {
   }
 
   // Aggregate each group
-  return Array.from(groups.entries()).map(([pcode, group]) => {
+  return Array.from(groups.entries()).map(([geoName, group]) => {
     // Compute main value: use first metric (aggregated), or default to record count
     let mainValue: number;
 
@@ -423,8 +445,7 @@ const allAggregatedData = computed(() => {
     }
 
     const item: Record<string, unknown> = {
-      name: pcode, // Use PCODE as the item name for ECharts binding
-      displayName: group.name, // Friendly name for tooltips/callouts
+      name: geoName,
       value: mainValue,
     };
 
@@ -450,7 +471,7 @@ const allAggregatedData = computed(() => {
 const fixedMapTotal = computed(() => {
   return allAggregatedData.value.reduce((sum, item) => {
     // Only sum data for items that exist in the current map boundaries
-    if (!featureLookup.value.some(f => f.pcode === item.name)) {
+    if (!featureLookup.value.some(f => f.name === item.name)) {
       return sum;
     }
     const val = typeof item.value === 'number' ? item.value : 0;
@@ -466,7 +487,7 @@ const mapData = computed(() => {
   }
 
   return allAggregatedData.value.filter(item => {
-    const feature = featureLookup.value.find(f => f.pcode === item.name);
+    const feature = featureLookup.value.find(f => f.name === item.name);
     if (!feature) return true;
     
     // For NCR at region level, sub-boundaries are cities (ADM3), not provinces (ADM2)
@@ -526,20 +547,19 @@ function getOptions() {
         color: "#1f2937",
       },
       formatter: (params: any) => {
-        const pcode = params.name || "";
-        const dataItem = mapData.value.find((d: any) => d.name === pcode);
-        const displayName = dataItem?.displayName || params.name || "Unknown";
+        const name = params.name || "Unknown";
+        const dataItem = mapData.value.find((d: any) => d.name === name);
 
         if (!dataItem) {
-          return `<div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${displayName}</div><div style="color: #6b7280;">No data available</div>`;
+          return `<div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${name}</div><div style="color: #6b7280;">No data available</div>`;
         }
 
         // Build tooltip with all metrics
-        let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1f2937;">${displayName}</div>`;
+        let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1f2937;">${name}</div>`;
 
         // Get all numeric properties as metrics
         const metricEntries = Object.entries(dataItem).filter(
-          ([key, val]) => key !== "name" && key !== "displayName" && typeof val === "number",
+          ([key, val]) => key !== "name" && typeof val === "number",
         );
 
         if (metricEntries.length > 0) {
@@ -582,7 +602,6 @@ function getOptions() {
         areaColor: "#e5e7eb",
         borderColor: "#fff",
       },
-      nameProperty: (mapStore.activeLevel === 'region' ? 'ADM1_PCODE' : (mapStore.activeLevel === 'province' ? 'ADM2_PCODE' : 'ADM3_PCODE')),
       select: {
         itemStyle: {
           areaColor: "#60a5fa",
@@ -645,9 +664,10 @@ const resizeObserver = new ResizeObserver(() => {
 
 function onMapClick(params: any) {
   if (params.componentType === "geo") {
-    const pcode = params.name;
+    const clickedName = params.name;
+    // Find the PCODE for the clicked boundary by name
     const boundary = mapStore.boundariesForLevel.find(
-      (b) => b.pcode === pcode,
+      (b) => b.name === clickedName,
     );
     if (boundary) {
       mapStore.selectBoundary(boundary.pcode);

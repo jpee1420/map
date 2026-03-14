@@ -1,0 +1,151 @@
+Region,Province,Municipality,Total Population,Male,Female,Households,Employed,Unemployed,Self-Employed
+Region VI (Western Visayas),Capiz,Mambusao,92992,48290,44702,21294,41295,2684,14722
+Region I (Ilocos Region),Pangasinan,San Jacinto,44914,23058,21856,11766,20372,1843,5816
+Region IV-B (Mimaropa),Marinduque,Santa Cruz,97125,46854,50271,21263,40420,2706,17048
+Region VIII (Eastern Visayas),Biliran,Almeria,69420,35322,34098,15413,31418,2931,9233
+Region V (Bicol Region),Catanduanes,Pandan,39348,19416,19932,7323,15968,1576,4738
+Region XIII (Caraga),Agusan del Sur,Talacogon,57767,27902,29865,11322,27822,2029,7376
+Region X (Northern Mindanao),Camiguin,Guinsiliban,90796,45576,45220,18764,37313,2426,15608
+Region VI (Western Visayas),Negros Occidental,La Castellana,40094,20323,19771,8053,15132,1727,6056
+Region XII (Soccsksargen),Cotabato (North Cotabato),Alamada,65589,33310,32279,17957,30274,1889,8577
+Region II (Cagayan Valley),Isabela,Dinapigue,53084,27178,25906,12544,22301,1562,9504
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Maguing,67017,34431,32586,15440,28552,2942,9469
+Region III (Central Luzon),Nueva Ecija,San Isidro,45341,23397,21944,12494,19006,1086,6927
+Region II (Cagayan Valley),Isabela,Reina Mercedes,51807,24951,26856,9438,20479,2464,8031
+Region IV-A (Calabarzon),Batangas,Laurel,51812,26175,25637,12426,21418,2051,5602
+Region VI (Western Visayas),Negros Occidental,San Carlos City,63800,32256,31544,12236,24533,1459,9799
+Region VI (Western Visayas),Aklan,Balete,48807,24806,24001,11239,18959,1779,6751
+Region X (Northern Mindanao),Misamis Occidental,Sapang Dalaga,36793,17771,19022,6897,15228,866,5353
+Region VIII (Eastern Visayas),Northern Samar,Mapanas,38960,19984,18976,7872,16758,1885,4961
+Region VII (Central Visayas),Bohol,Loay,64359,32884,31475,14096,30566,2183,8602
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Special Geographic Area,Special Geographic Area - Pikit II,49304,23726,25578,11905,18799,1385,7579
+Region VII (Central Visayas),Cebu,Pinamungajan,53068,25683,27385,10322,22649,1993,9023
+Region III (Central Luzon),Nueva Ecija,Cabiao,32898,17053,15845,6588,14409,878,3835
+Region X (Northern Mindanao),Misamis Occidental,Tudela,76951,37951,39000,21114,32849,2503,13046
+Region VIII (Eastern Visayas),Leyte,Mahaplag,6785,3480,3305,1375,2850,276,1161
+Region III (Central Luzon),Bataan,Bagac,92879,47146,45733,20354,41364,3819,13542
+Region X (Northern Mindanao),Lanao del Norte,Baloi,31116,15906,15210,6433,13050,889,3337
+Region VIII (Eastern Visayas),Biliran,Kawayan,59136,28474,30662,15114,23734,2643,9483
+Region I (Ilocos Region),Pangasinan,Mangaldan,41622,21202,20420,11236,18111,1374,5860
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Maguindanao del Sur,Rajah Buayan,95842,48169,47673,18378,36896,3095,15666
+Region I (Ilocos Region),Pangasinan,Santa Barbara,14861,7633,7228,2786,6352,362,2213
+Region I (Ilocos Region),Ilocos Sur,Santa Lucia,41170,20046,21124,9660,18018,1558,4652
+Region XI (Davao Region),Davao Oriental,Tarragona,55915,28846,27069,10192,22377,2115,8430
+Region VII (Central Visayas),Negros Oriental,Bais City,62959,32148,30811,15734,27366,3225,9901
+Region IV-B (Mimaropa),Oriental Mindoro,Baco,30767,15045,15722,6656,13923,1137,3724
+Region XII (Soccsksargen),South Cotabato,Tampakan,57563,27944,29619,14097,25683,2280,7423
+Region II (Cagayan Valley),Cagayan,Aparri,7621,3806,3815,1638,2835,286,1204
+Region I (Ilocos Region),Ilocos Sur,Nagbukel,86503,42652,43851,20228,36026,3812,10764
+Region III (Central Luzon),Nueva Ecija,San Leonardo,46320,23842,22478,9632,21418,1656,5978
+Region XIII (Caraga),Surigao del Sur,City of Bislig,35595,18317,17278,6946,16107,1667,4571
+Region III (Central Luzon),Bataan,Hermosa,88225,45632,42593,20857,41723,2295,10598
+Region IV-B (Mimaropa),Romblon,Romblon (Capital),34673,17510,17163,7343,14075,1594,5330
+Region IX (Zamboanga Peninsula),Zamboanga del Norte,Mutia,49003,23544,25459,9420,22304,2368,6758
+Region V (Bicol Region),Masbate,Uson,12629,6119,6510,3604,5437,560,1742
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Maguindanao del Sur,Datu Unsay,57771,28296,29475,10808,27637,1945,7339
+Region XIII (Caraga),Surigao del Sur,Lanuza,15350,7747,7603,3504,6532,584,2797
+Region II (Cagayan Valley),Cagayan,Lasam,71906,35535,36371,14900,31711,2034,9360
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Mulondo,93950,48432,45518,20495,33838,4026,14181
+Region III (Central Luzon),Pampanga,Masantol,10256,5142,5114,2340,4613,372,1398
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Basilan,City of Lamitan,84705,41779,42926,17782,33437,2860,11726
+Region I (Ilocos Region),Pangasinan,Malasiqui,24802,12396,12406,6317,10946,647,3439
+Region V (Bicol Region),Camarines Norte,Capalonga,10886,5544,5342,2737,4305,431,1300
+Region VI (Western Visayas),Iloilo,Badiangan,47086,24447,22639,11246,21123,1595,6163
+Region VIII (Eastern Visayas),Northern Samar,Lapinig,69677,35295,34382,13636,28077,2602,8608
+Region VIII (Eastern Visayas),Samar (Western Samar),Pinabacdao,9604,4663,4941,2034,4212,315,1714
+Region XIII (Caraga),Surigao del Sur,Hinatuan,33920,17610,16310,8035,15446,1440,4220
+Region VI (Western Visayas),Antique,Hamtic,6440,3120,3320,1494,2489,243,920
+Region II (Cagayan Valley),Quirino,Nagtipunan,35887,18204,17683,9637,13440,875,5565
+Region XI (Davao Region),Davao Oriental,Lupon,32989,16604,16385,6740,13842,944,5136
+Region I (Ilocos Region),Pangasinan,Balungao,6682,3456,3226,1260,2665,186,883
+Region VI (Western Visayas),Negros Occidental,Silay City,26772,12999,13773,4929,11455,1230,3932
+National Capital Region (NCR),Metropolitan Manila Second District,Quezon City,28415,14245,14170,5561,13276,904,4137
+Region IV-B (Mimaropa),Oriental Mindoro,Bongabong,76210,39176,37034,16609,32415,2252,10338
+Region VIII (Eastern Visayas),Leyte,Matalom,66736,34012,32724,13219,27019,2274,8260
+Region VIII (Eastern Visayas),Leyte,Abuyog,87088,43939,43149,19622,36359,2578,11190
+Region X (Northern Mindanao),Misamis Oriental,Salay,86680,43320,43360,18153,35858,3956,11142
+Region X (Northern Mindanao),Bukidnon,Libona,48749,23436,25313,9963,21011,1300,6352
+Region XIII (Caraga),Agusan del Sur,Bunawan,69559,36004,33555,12972,29803,3214,9112
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Basilan,Al-Barka,20280,10292,9988,5692,8930,752,2255
+Region IX (Zamboanga Peninsula),Zamboanga del Sur,Ramon Magsaysay (Liargo),37993,18633,19360,8379,14775,892,5573
+Region VI (Western Visayas),Iloilo,Barotac Nuevo,82294,42248,40046,22554,33638,2392,13368
+Region V (Bicol Region),Albay,Daraga (Locsin),99040,50202,48838,21325,42842,4974,15620
+Region II (Cagayan Valley),Isabela,San Mariano,81415,39743,41672,20018,36536,4074,11448
+Region VIII (Eastern Visayas),Samar (Western Samar),Basey,51922,25184,26738,10754,20582,2284,7664
+Region III (Central Luzon),Pampanga,Santa Ana,79896,38491,41405,14555,35712,2756,11902
+Region XIII (Caraga),Surigao del Sur,Barobo,46793,22589,24204,9345,21578,1335,7024
+Region VIII (Eastern Visayas),Northern Samar,Palapag,28265,14175,14090,6660,11716,935,3728
+Region VIII (Eastern Visayas),Biliran,Caibiran,68446,32869,35577,12653,27026,2726,10615
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Balindong (Watu),14311,7355,6956,2819,5696,369,2339
+Region IV-A (Calabarzon),Quezon,Panukulan,76819,37220,39599,20545,31096,3199,9531
+Region IV-A (Calabarzon),Quezon,Guinayangan,49583,24693,24890,9866,20560,2165,8494
+Cordillera Administrative Region (CAR),Benguet,Bakun,92322,44897,47425,17075,40450,3900,13292
+Region IX (Zamboanga Peninsula),Zamboanga Sibugay,Ipil (Capital),9348,4775,4573,1835,4365,245,1459
+Region V (Bicol Region),Sorsogon,Gubat,47254,23180,24074,10689,20696,2144,5235
+Region VI (Western Visayas),Iloilo,Oton,69790,34534,35256,14440,31350,1771,10519
+Region IV-B (Mimaropa),Palawan,Cuyo,91481,44843,46638,17081,38522,3243,14620
+Region VII (Central Visayas),Cebu,Ginatilan,51416,25116,26300,11969,24798,2057,6425
+Region VIII (Eastern Visayas),Leyte,Javier (Bugho),72831,37457,35374,13282,31088,2871,10981
+Region VIII (Eastern Visayas),Leyte,City of Baybay,39495,20090,19405,8779,14746,1713,5800
+Region VII (Central Visayas),Cebu,Dalaguete,67889,33056,34833,13625,27428,2690,9756
+Region IV-A (Calabarzon),Laguna,Siniloan,52789,25457,27332,10443,23075,1348,8162
+Region IV-A (Calabarzon),Quezon,Pagbilao,81693,41895,39798,16698,37402,3066,12195
+Region IV-B (Mimaropa),Oriental Mindoro,Pola,85408,41214,44194,17015,39061,2638,9875
+Cordillera Administrative Region (CAR),Kalinga,Pinukpuk,90955,44619,46336,23189,37733,3426,12832
+Region VIII (Eastern Visayas),Eastern Samar,San Julian,62653,30076,32577,14319,24767,2809,9644
+Cordillera Administrative Region (CAR),Ifugao,Kiangan,50433,24453,25980,12963,22065,2130,6660
+Region VII (Central Visayas),Bohol,Batuan,79939,40115,39824,16378,34485,2892,12343
+Region XIII (Caraga),Dinagat Islands,Basilisa (Rizal),52732,26817,25915,11242,25186,1635,6576
+Region III (Central Luzon),Zambales,Masinloc,27503,14173,13330,7139,11631,836,4963
+Region XIII (Caraga),Surigao del Norte,Alegria,68502,34575,33927,18705,27205,2111,9240
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Special Geographic Area,Special Geographic Area - Midsayap I,91426,46831,44595,22168,39104,4672,15413
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Special Geographic Area,Special Geographic Area - Midsayap II,84491,42297,42194,20657,31763,2407,12310
+Region XIII (Caraga),Surigao del Sur,Lingig,70019,33647,36372,13732,29862,2947,9575
+Region VI (Western Visayas),Negros Occidental,Cauayan,61881,31050,30831,16380,28911,2293,8951
+Region VIII (Eastern Visayas),Southern Leyte,Hinunangan,25612,12796,12816,4979,10498,860,2972
+Region VI (Western Visayas),Negros Occidental,Ilog,94682,46079,48603,19266,37271,4274,14303
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Sultan Dumalondong,13191,6476,6715,3544,5707,401,1806
+Region IX (Zamboanga Peninsula),Zamboanga del Sur,Margosatubig,52403,25698,26705,12023,21213,2111,7702
+Cordillera Administrative Region (CAR),Abra,Lagayan,62231,31333,30898,16538,26077,3073,10180
+Region X (Northern Mindanao),Misamis Occidental,Baliangao,58764,29258,29506,12315,23116,2012,9884
+Region VI (Western Visayas),Iloilo,Sara,9894,4762,5132,1870,4526,460,1181
+Region VIII (Eastern Visayas),Samar (Western Samar),Calbayog City,21032,10930,10102,4785,8561,778,3632
+Region IV-B (Mimaropa),Romblon,Santa Fe,17217,8918,8299,4871,6725,502,2762
+Region VIII (Eastern Visayas),Biliran,Maripipi,64912,33527,31385,14491,27703,1775,10699
+Region IX (Zamboanga Peninsula),Zamboanga del Sur,San Miguel,57820,29524,28296,15531,25102,2195,9279
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Basilan,Lantawan,65305,31960,33345,12278,27695,2367,9207
+Region X (Northern Mindanao),Misamis Oriental,Cagayan de Oro City (Capital),55244,28084,27160,12141,21028,1329,8453
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Maguindanao del Sur,Datu Saudi-Ampatuan,91728,44059,47669,19288,36584,3098,13272
+Region I (Ilocos Region),Ilocos Norte,Piddig,63359,32074,31285,14368,27352,2424,7898
+Region VI (Western Visayas),Negros Occidental,Moises Padilla (Magallon),60143,30833,29310,12986,22940,1665,9459
+Region IV-A (Calabarzon),Quezon,Dolores,76174,39335,36839,13854,31790,2756,13098
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Picong (Sultan Gumander),54536,27815,26721,10046,22293,2186,9460
+Region XIII (Caraga),Surigao del Norte,Surigao City (Capital),56157,27965,28192,11970,23202,2015,7492
+Region VIII (Eastern Visayas),Southern Leyte,Libagon,56909,27827,29082,10375,24602,1588,9146
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Lanao del Sur,Binidayan,85990,42763,43227,19326,40449,3570,11779
+Region III (Central Luzon),Nueva Ecija,Zaragoza,8279,4094,4185,1686,3635,320,1260
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Sulu,Talipao,59065,28751,30314,13550,22826,2514,9595
+Cordillera Administrative Region (CAR),Kalinga,Pasil,39501,20007,19494,8799,16998,1384,5887
+Region VIII (Eastern Visayas),Northern Samar,Mondragon,33553,16298,17255,6132,13925,1022,4374
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Maguindanao del Norte,Talitay,13973,6729,7244,3902,6198,370,1962
+Region IV-B (Mimaropa),Oriental Mindoro,Gloria,22815,11085,11730,5830,9405,687,3041
+Region I (Ilocos Region),Ilocos Sur,Caoayan,29144,14641,14503,7574,11963,809,3489
+Cordillera Administrative Region (CAR),Abra,Sallapadan,94235,48149,46086,17718,37706,3578,10623
+Region VII (Central Visayas),Negros Oriental,City of Tanjay,11913,6150,5763,2461,4566,388,1817
+Region VIII (Eastern Visayas),Eastern Samar,Quinapondan,94122,47322,46800,18050,40446,2432,13746
+Region XI (Davao Region),Davao del Norte,Talaingod,45388,22139,23249,12028,20344,1175,6961
+Region II (Cagayan Valley),Isabela,Maconacon,57169,27592,29577,11772,24866,2154,6262
+National Capital Region (NCR),Metropolitan Manila First District,City of Manila,85470,44060,41410,19417,34733,3506,9562
+Bangsamoro Autonomous Region In Muslim Mindanao (BARMM),Maguindanao del Sur,Sultan Sa Barongis (Lambayong),78272,38196,40076,19933,33870,2632,10553
+Region IX (Zamboanga Peninsula),Zamboanga del Sur,Aurora,45054,22591,22463,8983,18649,1425,7951
+Region XII (Soccsksargen),Cotabato (North Cotabato),Aleosan,15781,7764,8017,3217,6815,498,2672
+Region V (Bicol Region),Catanduanes,Bagamanoc,39080,18789,20291,8681,17498,1247,4868
+Cordillera Administrative Region (CAR),Abra,Bucay,76342,37591,38751,18202,30897,1818,10254
+Region III (Central Luzon),Zambales,San Narciso,21261,10941,10320,3998,8710,754,3634
+Region I (Ilocos Region),Ilocos Sur,Suyo,69696,33912,35784,17018,27254,2752,10765
+Region III (Central Luzon),Tarlac,Victoria,67471,35034,32437,12441,29754,2043,11588
+Region II (Cagayan Valley),Cagayan,Pamplona,99034,49856,49178,19112,40839,3016,12686
+Region II (Cagayan Valley),Isabela,Palanan,75284,38706,36578,19537,35643,2159,10726
+Region X (Northern Mindanao),Misamis Oriental,Villanueva,5138,2576,2562,1093,1945,199,830
+Region III (Central Luzon),Bataan,Mariveles,78298,40517,37781,14855,31766,2587,11643
+Region IV-B (Mimaropa),Palawan,Narra,74633,38379,36254,18314,32310,2959,8505

@@ -29,7 +29,7 @@ test-files/
 .agent/
 .windsurf/
 .vscode/
-public/data/*
+public/data/
 scripts/*
 prompt.md
 .agents/
